@@ -37,6 +37,22 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [theme, setTheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') || 'light';
+    }
+    return 'light';
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.remove('dark', 'light');
+    document.documentElement.classList.add(theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  };
 
   const fetchUnits = useCallback(async () => {
     const data = await getDocs(unitsCollectionRef);
@@ -215,10 +231,19 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-800">
-      <header className="bg-blue-600 shadow-lg text-white p-6 pb-12 flex justify-between items-center">
+    <div className={`min-h-screen bg-gray-50 text-gray-800 ${theme === 'dark' ? 'dark bg-gray-900 text-gray-100' : ''}`}>
+      <header className="bg-blue-600 shadow-lg text-white p-6 pb-12 flex justify-between items-center relative">
         <h1 className="text-4xl font-bold text-center w-full">Gestão de Licenças Ambientais</h1>
-        <button onClick={() => signOut(auth)} className="absolute right-8 top-8 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition">Sair</button>
+        <div className="absolute right-8 top-8 flex gap-2">
+          <button
+            onClick={toggleTheme}
+            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
+            aria-label="Alternar modo claro/escuro"
+          >
+            {theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
+          </button>
+          <button onClick={() => signOut(auth)} className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition">Sair</button>
+        </div>
       </header>
 
       <nav className="flex justify-center -mt-8 z-10 relative">

@@ -82,12 +82,13 @@ const LicenseManagement: React.FC<LicenseManagementProps> = ({ licenses, branche
     localStorage.setItem('licenseTableColWidths', JSON.stringify(colWidths));
   }, [colWidths]);
 
+  // Correções de tipagem e null check
   function handleToggleColumn(idx: number) {
-    setColumns(cols => cols.map((col, i) => i === idx ? { ...col, visible: !col.visible } : col));
+    setColumns((cols: typeof columns) => cols.map((col: typeof columns[0], i: number) => i === idx ? { ...col, visible: !col.visible } : col));
   }
 
   function handleMoveColumn(from: number, to: number) {
-    setColumns(cols => {
+    setColumns((cols: typeof columns) => {
       const arr = [...cols];
       const [moved] = arr.splice(from, 1);
       arr.splice(to, 0, moved);
@@ -209,8 +210,24 @@ const LicenseManagement: React.FC<LicenseManagementProps> = ({ licenses, branche
     return (license[key as keyof License] || '').toString().toLowerCase();
   }
 
+  // Correção 2: Tipagem explícita em map/filter
+  // Exemplo de uso:
+  // columns.filter((col: typeof columns[0]) => ...)
+  // columns.map((col: typeof columns[0], idx: number) => ...)
+  // sortedLicenses.map((license: License) => ...)
+  //
+  // Correção 3: Checagem de parentElement
+  //
+  // No trecho:
+  // onMouseDown={e => {
+  //   const startX = e.clientX;
+  //   const startWidth = e.currentTarget.parentElement.offsetWidth;
+  //   ...
+  // }}
+  //
+  // Substituir por:
   function handleColResize(key: string, newWidth: number) {
-    setColWidths(w => ({ ...w, [key]: Math.max(80, newWidth) }));
+    setColWidths((w: Record<string, number>) => ({ ...w, [key]: Math.max(80, newWidth) }));
   }
 
   // Ordenar filiais e tipos de licença alfabeticamente
@@ -413,7 +430,7 @@ const LicenseManagement: React.FC<LicenseManagementProps> = ({ licenses, branche
           <table className="min-w-full bg-white divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                {columns.filter(col => col.visible).map(col => (
+                {columns.filter((col: typeof columns[0]) => col.visible).map((col: typeof columns[0], idx: number) => (
                   <th
                     key={col.key}
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none relative group"
@@ -430,9 +447,11 @@ const LicenseManagement: React.FC<LicenseManagementProps> = ({ licenses, branche
                         className="absolute right-0 top-0 h-full w-2 cursor-col-resize group-hover:bg-blue-200"
                         onMouseDown={e => {
                           const startX = e.clientX;
-                          const startWidth = e.currentTarget.parentElement.offsetWidth;
-                          function onMove(ev) {
-                            handleColResize(col.key, startWidth + (ev.clientX - startX));
+                          const parent = (e.currentTarget as HTMLElement).parentElement;
+                          if (!parent) return;
+                          const startWidth = parent.offsetWidth;
+                          function onMove(ev: MouseEvent) {
+                            handleColResize(String(col.key), startWidth + (ev.clientX - startX));
                           }
                           function onUp() {
                             window.removeEventListener('mousemove', onMove);
@@ -449,9 +468,9 @@ const LicenseManagement: React.FC<LicenseManagementProps> = ({ licenses, branche
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {sortedLicenses.map(license => (
+              {sortedLicenses.map((license: License, idx: number) => (
                 <tr key={license.id} className="hover:bg-gray-50 transition-colors">
-                  {columns.filter(col => col.visible).map(col => {
+                  {columns.filter((col: typeof columns[0]) => col.visible).map((col: typeof columns[0], colIdx: number) => {
                     switch (col.key) {
                       case 'unitId':
                         return <td key={col.key} className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{getBranchName(license.unitId)}</td>;
@@ -508,8 +527,8 @@ const LicenseManagement: React.FC<LicenseManagementProps> = ({ licenses, branche
             <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-700" onClick={() => setShowColumns(false)}>&times;</button>
             <h3 className="text-lg font-bold mb-4">Configurar Colunas</h3>
             <div className="space-y-2">
-              {columns.map((col, idx) => (
-                <div key={col.key} className="flex items-center gap-2 cursor-move" draggable onDragStart={e => e.dataTransfer.setData('colIdx', idx)} onDrop={e => { e.preventDefault(); handleMoveColumn(Number(e.dataTransfer.getData('colIdx')), idx); }} onDragOver={e => e.preventDefault()}>
+              {columns.map((col: typeof columns[0], idx: number) => (
+                <div key={col.key} className="flex items-center gap-2 cursor-move" draggable onDragStart={e => e.dataTransfer.setData('colIdx', String(idx))} onDrop={e => { e.preventDefault(); handleMoveColumn(Number(e.dataTransfer.getData('colIdx')), idx); }} onDragOver={e => e.preventDefault()}>
                   <input type="checkbox" checked={col.visible} onChange={() => handleToggleColumn(idx)} id={`col-${col.key}`} />
                   <label htmlFor={`col-${col.key}`}>{col.label}</label>
                   <span className="ml-auto text-gray-400">☰</span>
