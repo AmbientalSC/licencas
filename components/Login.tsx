@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase';
+import bgImage from '../assets/meioambiental.jpeg';
 
 interface LoginProps {
   onLogin: () => void;
@@ -27,8 +28,17 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm space-y-6">
+    <div
+      className="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat relative"
+      style={{ backgroundImage: `url(${bgImage})` }}
+    >
+      {/* Overlay escuro para melhorar legibilidade */}
+      <div className="absolute inset-0 bg-black/50"></div>
+
+      <form
+        onSubmit={handleSubmit}
+        className="relative z-10 bg-white/95 backdrop-blur-sm p-8 rounded-xl shadow-2xl w-full max-w-sm space-y-6"
+      >
         <h2 className="text-2xl font-bold text-center text-gray-700">Login</h2>
         <div className="flex flex-col gap-2">
           <label htmlFor="email" className="font-semibold text-gray-600">E-mail</label>
@@ -66,4 +76,4 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   );
 };
 
-export default Login; 
+export default Login;

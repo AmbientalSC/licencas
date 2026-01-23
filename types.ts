@@ -31,6 +31,10 @@ export interface License {
   observation: string;
   active: boolean;
   inactiveObservation?: string;
+  category?: 'Ambiental' | 'SGA';
+  responsible?: string;
+  fileUrl?: string;
+  fileName?: string;
 }
 
 export interface LicenseType {
@@ -49,4 +53,16 @@ export interface Branch {
   state: string;
   contact: string;
   status: Status;
+}
+
+export interface User {
+  id?: string;
+  uid?: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'colaborador';
+  active: boolean;
+  allowedScreens?: string[]; // e.g., ['dashboard','licenses']
+  visibleBranchIds?: string[]; // Branch IDs user can access
+  visibleLicenseTypes?: string[]; // License type names user can access
 }

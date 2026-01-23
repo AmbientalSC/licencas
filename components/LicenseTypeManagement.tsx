@@ -84,9 +84,9 @@ const LicenseTypeManagement: React.FC<LicenseTypeManagementProps> = ({ licenseTy
   
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-xl shadow-lg">
+      <div className="bg-white p-6 rounded-xl shadow-lg dark:bg-gray-900 dark:border dark:border-gray-700">
         <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-gray-700">{editingLicenseType ? 'Editar Tipo de Licença' : 'Cadastro de Tipos de Licença'}</h2>
+            <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200">{editingLicenseType ? 'Editar Tipo de Licença' : 'Cadastro de Tipos de Licença'}</h2>
             <button
               onClick={isFormOpen ? handleCancel : handleAddNewClick}
               className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition-transform transform hover:scale-105"
@@ -98,15 +98,15 @@ const LicenseTypeManagement: React.FC<LicenseTypeManagementProps> = ({ licenseTy
         {isFormOpen && (
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
             <div className="flex flex-col">
-              <label htmlFor="name" className="mb-1 font-semibold text-gray-600">Tipo de Licença</label>
+              <label htmlFor="name" className="mb-1 font-semibold text-gray-600 dark:text-gray-300">Tipo de Licença</label>
               <input type="text" id="name" name="name" value={formState.name} onChange={handleChange} className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent transition" required />
             </div>
             <div className="flex flex-col">
-              <label htmlFor="renewalProtocolDays" className="mb-1 font-semibold text-gray-600">Prazo para Protocolo (dias)</label>
+              <label htmlFor="renewalProtocolDays" className="mb-1 font-semibold text-gray-600 dark:text-gray-300">Prazo para Protocolo (dias)</label>
               <input type="number" id="renewalProtocolDays" name="renewalProtocolDays" value={formState.renewalProtocolDays} onChange={handleChange} className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent transition" required />
             </div>
             <div className="flex flex-col">
-              <label htmlFor="processStartDays" className="mb-1 font-semibold text-gray-600">Prazo para Início (dias)</label>
+              <label htmlFor="processStartDays" className="mb-1 font-semibold text-gray-600 dark:text-gray-300">Prazo para Início (dias)</label>
               <input type="number" id="processStartDays" name="processStartDays" value={formState.processStartDays} onChange={handleChange} className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent transition" required />
             </div>
             
@@ -122,11 +122,11 @@ const LicenseTypeManagement: React.FC<LicenseTypeManagementProps> = ({ licenseTy
         )}
       </div>
 
-      <div className="bg-white p-6 rounded-xl shadow-lg">
-        <h2 className="text-2xl font-bold text-gray-700 mb-4">Tipos de Licença Registrados</h2>
+      <div className="bg-white p-6 rounded-xl shadow-lg dark:bg-gray-900 dark:border dark:border-gray-700">
+        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200 mb-4">Tipos de Licença Registrados</h2>
         <div className="overflow-x-auto">
-          <table className="min-w-full bg-white divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
                 {[
                   { label: 'Tipo de Licença', key: 'name' },
@@ -136,7 +136,7 @@ const LicenseTypeManagement: React.FC<LicenseTypeManagementProps> = ({ licenseTy
                 ].map(col => (
                   <th
                     key={col.label}
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none"
                     onClick={col.key ? () => handleSort(col.key) : undefined}
                   >
                     {col.label}
@@ -147,12 +147,12 @@ const LicenseTypeManagement: React.FC<LicenseTypeManagementProps> = ({ licenseTy
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {sortedLicenseTypes.map(lt => (
-                <tr key={lt.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{lt.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{lt.renewalProtocolDays}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{lt.processStartDays}</td>
+                <tr key={lt.id} className="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{lt.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{lt.renewalProtocolDays}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{lt.processStartDays}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center gap-2">
                         <button onClick={() => handleEditClick(lt)} className="text-blue-600 hover:text-blue-900 transition-colors"><PencilIcon /></button>
