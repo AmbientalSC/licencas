@@ -3,8 +3,129 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gestão de Licenças Ambientais</title>
+    <title>Gestao de Licencas Ambientais</title>
+    <script>
+      // Force Tailwind to generate dark: variants using the `.dark` class
+      // so the app can toggle theme by adding/removing the `dark` class.
+      tailwind = window.tailwind || {};
+      tailwind.config = Object.assign(tailwind.config || {}, { darkMode: 'class' });
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root {
+        --bg: #f7f9fc;
+        --surface: #ffffff;
+        --surface-muted: #f1f5f9;
+        --text-strong: #0f172a;
+        --text-muted: #475569;
+        --border: #e2e8f0;
+        --primary: #2563eb;
+      }
+
+      html.dark {
+        --bg: #0b1220;
+        --surface: #0f172a;
+        --surface-muted: #111827;
+        --text-strong: #e5e7eb;
+        --text-muted: #cbd5e1;
+        --border: #1f2937;
+        --primary: #60a5fa;
+        color-scheme: dark;
+      }
+
+      body {
+        background-color: var(--bg);
+        color: var(--text-strong);
+        transition: background-color 160ms ease, color 160ms ease;
+      }
+
+      aside,
+      header,
+      footer {
+        background-color: var(--surface);
+        color: var(--text-strong);
+        border-color: var(--border);
+        transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+      }
+
+      /* Superficies e cards que so usam bg-white ou bg-gray no JSX */
+      .bg-white {
+        background-color: var(--surface);
+        color: var(--text-strong);
+        transition: background-color 160ms ease, color 160ms ease;
+      }
+
+      .bg-gray-50,
+      .bg-gray-100 {
+        background-color: var(--surface-muted);
+        color: var(--text-strong);
+        transition: background-color 160ms ease, color 160ms ease;
+      }
+
+      .border-gray-200 {
+        border-color: var(--border);
+        transition: border-color 160ms ease;
+      }
+
+      .text-gray-900,
+      .text-gray-800,
+      .text-gray-700 {
+        color: var(--text-strong);
+      }
+
+      .text-gray-600,
+      .text-gray-500,
+      .text-gray-400 {
+        color: var(--text-muted);
+      }
+
+      input,
+      textarea,
+      select {
+        background-color: var(--surface);
+        color: var(--text-strong);
+        border-color: var(--border);
+        transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+      }
+
+      input::placeholder,
+      textarea::placeholder {
+        color: var(--text-muted);
+      }
+
+      table thead th {
+        color: var(--text-muted);
+        background-color: var(--surface-muted);
+      }
+
+      table tbody td {
+        color: var(--text-strong);
+      }
+
+      /* Ajusta hovers claros quando o modo escuro esta ativo */
+      html.dark .hover\:bg-gray-100:hover,
+      html.dark .hover\:bg-gray-50:hover {
+        background-color: #111b2d;
+        color: var(--text-strong);
+      }
+
+      /* Força claro quando .dark não está presente (cobre CSS antigo com @media prefers-color-scheme) */
+      html:not(.dark) .bg-gray-900,
+      html:not(.dark) .bg-gray-800,
+      html:not(.dark) .bg-gray-700,
+      html:not(.dark) .dark\:bg-gray-800,
+      html:not(.dark) .dark\:bg-gray-900 {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+      }
+
+      html:not(.dark) .dark\:text-white,
+      html:not(.dark) .dark\:text-gray-100,
+      html:not(.dark) .dark\:text-gray-200,
+      html:not(.dark) .dark\:text-gray-300 {
+        color: #0f172a !important;
+      }
+    </style>
     <style>
       /* Custom scrollbar for better aesthetics */
       ::-webkit-scrollbar {
@@ -36,10 +157,12 @@
   }
 }
 </script>
-  <script type="module" crossorigin src="/licencas/assets/index-DZ6iSwvk.js"></script>
-  <link rel="stylesheet" crossorigin href="/licencas/assets/index-KWULqoGL.css">
+  <script type="module" src="/index.tsx"></script>
 </head>
   <body class="bg-gray-100">
     <div id="root"></div>
   </body>
 </html>
+
+
+

@@ -2,57 +2,113 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Inversão total de cores para dark mode */
-.dark {
-  --color-bg: #18181b;
-  --color-bg-light: #27272a;
-  --color-text: #f4f4f5;
-  --color-text-light: #d4d4d8;
-  --color-primary: #60a5fa;
-  --color-primary-dark: #2563eb;
+/* Theme variables: light defaults in :root, dark overrides in .dark */
+:root {
+  --color-bg: #f3f4f6;
+  --color-bg-light: #ffffff;
+  --color-text: #111827;
+  --color-text-light: #374151;
+  --color-primary: #2563eb;
   --color-danger: #ef4444;
-  --color-danger-dark: #b91c1c;
-  --color-success: #22c55e;
-  --color-success-dark: #15803d;
-  --color-warning: #facc15;
-  --color-warning-dark: #b45309;
-  background-color: var(--color-bg) !important;
-  color: var(--color-text) !important;
+  --color-success: #16a34a;
+  --color-warning: #f59e0b;
 }
 
-.dark .bg-white,
-.dark .bg-gray-50,
-.dark .bg-gray-100,
-.dark .bg-gray-200,
-.dark .bg-blue-600 {
+.dark {
+  --color-bg: #0f1724;
+  --color-bg-light: #111827;
+  --color-text: #f4f4f5;
+  --color-text-light: #9ca3af;
+  --color-primary: #60a5fa;
+  --color-danger: #fca5a5;
+  --color-success: #bbf7d0;
+  --color-warning: #facc15;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+input,
+textarea,
+select,
+.form-control,
+.rounded-xl,
+.fixed {
+  background-color: var(--color-bg-light);
+  color: var(--color-text);
+}
+
+table thead th {
+  color: var(--color-text-light);
+}
+
+table tbody tr td {
+  color: var(--color-text);
+}
+
+html:not(.dark) .bg-gray-50 {
+  background-color: #f9fafb !important;
+}
+
+html:not(.dark) .border-gray-200 {
+  border-color: #e5e7eb !important;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+aside,
+header {
+  background-color: var(--color-bg-light);
+  color: var(--color-text);
+  border-color: var(--color-border, #e5e7eb);
+}
+
+html.dark aside,
+html.dark header {
+  background-color: var(--color-bg-light);
+  color: var(--color-text);
+}
+
+html:not(.dark) aside,
+html:not(.dark) header {
   background-color: var(--color-bg-light) !important;
-}
-.dark .text-gray-700,
-.dark .text-gray-800,
-.dark .text-gray-900,
-.dark .text-blue-600 {
   color: var(--color-text) !important;
+  border-color: #e5e7eb !important;
 }
-.dark .bg-blue-500 { background-color: var(--color-primary) !important; }
-.dark .hover\:bg-blue-600:hover { background-color: var(--color-primary-dark) !important; }
-.dark .bg-red-500 { background-color: var(--color-danger) !important; }
-.dark .hover\:bg-red-600:hover { background-color: var(--color-danger-dark) !important; }
-.dark .bg-green-500 { background-color: var(--color-success) !important; }
-.dark .hover\:bg-green-600:hover { background-color: var(--color-success-dark) !important; }
-.dark .bg-yellow-100 { background-color: var(--color-warning) !important; }
-.dark .text-yellow-800 { color: var(--color-warning-dark) !important; }
-.dark .bg-red-100 { background-color: #7f1d1d !important; }
-.dark .text-red-800 { color: #fca5a5 !important; }
-.dark .bg-green-100 { background-color: #14532d !important; }
-.dark .text-green-800 { color: #bbf7d0 !important; }
-.dark .border-gray-300 { border-color: #52525b !important; }
-.dark .bg-gray-300 { background-color: #27272a !important; }
-.dark .text-gray-400 { color: #a1a1aa !important; }
-.dark .text-gray-500 { color: #d4d4d8 !important; }
-.dark .text-gray-600 { color: #e4e4e7 !important; }
-.dark .text-gray-100 { color: #18181b !important; }
-.dark .bg-gray-700 { background-color: #27272a !important; }
-.dark .bg-gray-900 { background-color: #18181b !important; }
-.dark .hover\:bg-gray-100:hover { background-color: #27272a !important; }
-.dark .hover\:bg-gray-400:hover { background-color: #52525b !important; }
-.dark .hover\:bg-gray-600:hover { background-color: #18181b !important; } 
+
+/* Custom scrollbar for tables */
+.table-scrollbar::-webkit-scrollbar {
+  height: 14px;
+  width: 14px;
+}
+
+.table-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.table-scrollbar::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 7px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+.table-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}

@@ -16,7 +16,7 @@ const DeactivatedLicenses: React.FC<DeactivatedLicensesProps> = ({ licenses, bra
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'originalExpiryDate', direction: 'asc' });
   const [showFilter, setShowFilter] = useState(false);
   const [filter, setFilter] = useState<{ branchId: string; licenseType: string }>({ branchId: '', licenseType: '' });
-  
+
   const getBranchName = (branchId: string) => {
     return branches.find(b => b.id === branchId)?.name || 'Desconhecida';
   };
@@ -84,8 +84,8 @@ const DeactivatedLicenses: React.FC<DeactivatedLicensesProps> = ({ licenses, bra
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-xl shadow-lg">
-        <h2 className="text-2xl font-bold text-gray-700 mb-4 flex items-center gap-2">
+      <div className="bg-white p-6 rounded-xl shadow-lg dark:bg-gray-900 dark:border dark:border-gray-700">
+        <h2 className="text-2xl font-bold text-gray-700 dark:text-white mb-4 flex items-center gap-2">
           Licenças Desativadas
           <button type="button" onClick={() => setShowFilter(f => !f)} className="ml-2 p-2 rounded hover:bg-gray-100 transition">
             <FilterIcon />
@@ -94,7 +94,7 @@ const DeactivatedLicenses: React.FC<DeactivatedLicensesProps> = ({ licenses, bra
         {showFilter && (
           <div className="mb-4 bg-gray-50 border border-gray-200 rounded-lg p-4 flex flex-col md:flex-row gap-4 items-center">
             <div className="flex flex-col">
-              <label className="text-xs font-semibold text-gray-600 mb-1">Filtrar por Filial</label>
+              <label className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">Filtrar por Filial</label>
               <select value={filter.branchId} onChange={e => setFilter(f => ({ ...f, branchId: e.target.value }))} className="p-2 border border-gray-300 rounded">
                 <option value="">Todas</option>
                 {sortedBranches.map(branch => (
@@ -103,7 +103,7 @@ const DeactivatedLicenses: React.FC<DeactivatedLicensesProps> = ({ licenses, bra
               </select>
             </div>
             <div className="flex flex-col">
-              <label className="text-xs font-semibold text-gray-600 mb-1">Filtrar por Tipo de Licença</label>
+              <label className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">Filtrar por Tipo de Licença</label>
               <select value={filter.licenseType} onChange={e => setFilter(f => ({ ...f, licenseType: e.target.value }))} className="p-2 border border-gray-300 rounded">
                 <option value="">Todas</option>
                 {sortedLicenseTypes.map(lt => (
@@ -115,8 +115,8 @@ const DeactivatedLicenses: React.FC<DeactivatedLicensesProps> = ({ licenses, bra
           </div>
         )}
         <div className="overflow-x-auto">
-          <table className="min-w-full bg-white divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
                 {[
                   { label: 'Unidade', key: 'unitId' },
@@ -134,7 +134,7 @@ const DeactivatedLicenses: React.FC<DeactivatedLicensesProps> = ({ licenses, bra
                 ].map(col => (
                   <th
                     key={col.label}
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none"
                     onClick={col.key ? () => handleSort(col.key) : undefined}
                   >
                     {col.label}
@@ -145,19 +145,19 @@ const DeactivatedLicenses: React.FC<DeactivatedLicensesProps> = ({ licenses, bra
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {sortedLicenses.map(license => (
-                <tr key={license.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{getBranchName(license.unitId)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{license.licenseType}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{license.numberYear}</td>
-                  <td className="px-6 py-4 whitespace-normal text-sm text-gray-600 max-w-xs">{license.description}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{license.licensingAgency}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{license.processNumber}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{license.issueDate ? new Date(license.issueDate + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{license.originalExpiryDate ? new Date(license.originalExpiryDate + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{license.prorrogaDate ? new Date(license.prorrogaDate + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{license.processStartDate ? new Date(license.processStartDate + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</td>
+                <tr key={license.id} className="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{getBranchName(license.unitId)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{license.licenseType}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{license.numberYear}</td>
+                  <td className="px-6 py-4 whitespace-normal text-sm text-gray-600 dark:text-gray-300 max-w-xs">{license.description}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{license.licensingAgency}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{license.processNumber}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{license.issueDate ? new Date(license.issueDate + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{license.originalExpiryDate ? new Date(license.originalExpiryDate + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{license.prorrogaDate ? new Date(license.prorrogaDate + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{license.processStartDate ? new Date(license.processStartDate + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</td>
                   <td className="px-6 py-4 whitespace-normal text-sm text-red-600 max-w-xs">{license.inactiveObservation}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button onClick={() => handleEditClick(license)} className="text-blue-600 hover:text-blue-900 transition-colors"><PencilIcon /></button>
@@ -169,11 +169,11 @@ const DeactivatedLicenses: React.FC<DeactivatedLicensesProps> = ({ licenses, bra
         </div>
       </div>
       {editingLicense && formState && (
-        <div className="bg-white p-6 rounded-xl shadow-lg mt-6">
+        <div className="bg-white p-6 rounded-xl shadow-lg dark:bg-gray-900 dark:border dark:border-gray-700 mt-6">
           <h3 className="text-xl font-bold text-gray-700 mb-4">Editar Licença Desativada</h3>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
             <div className="flex flex-col">
-              <label htmlFor="inactiveObservation" className="mb-1 font-semibold text-gray-600">Observação da Desativação</label>
+              <label htmlFor="inactiveObservation" className="mb-1 font-semibold text-gray-600 dark:text-gray-300">Observação da Desativação</label>
               <textarea
                 name="inactiveObservation"
                 id="inactiveObservation"
@@ -193,7 +193,7 @@ const DeactivatedLicenses: React.FC<DeactivatedLicensesProps> = ({ licenses, bra
                 onChange={handleChange}
                 className="mr-2"
               />
-              <label htmlFor="active" className="font-semibold text-gray-600">Reativar Licença</label>
+              <label htmlFor="active" className="font-semibold text-gray-600 dark:text-gray-300">Reativar Licença</label>
             </div>
             <div className="md:col-span-2 flex justify-end gap-4">
               <button type="button" onClick={handleCancel} className="px-6 py-3 bg-gray-500 text-white font-bold rounded-lg hover:bg-gray-600 transition-colors">
