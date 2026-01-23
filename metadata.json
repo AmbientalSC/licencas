@@ -1,5 +1,0 @@
-{
-  "name": "Sistema de Gestão de Licenças Ambientais",
-  "description": "Uma aplicação web para cadastrar e gerenciar unidades e suas respectivas licenças ambientais, proporcionando um controle centralizado e eficiente das datas de vencimento e informações relevantes.",
-  "requestFramePermissions": []
-}
