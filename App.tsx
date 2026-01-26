@@ -77,7 +77,29 @@ const App: React.FC = () => {
 
   const fetchLicenses = useCallback(async () => {
     const data = await getDocs(licensesCollectionRef);
-    const licensesData = data.docs.map(d => ({ ...d.data(), id: d.id } as License));
+    const licensesData = data.docs.map(d => {
+      const licenseData = d.data();
+      let attachments = licenseData.attachments || [];
+      
+      // Migração: Se tem fileUrl mas não tem attachments, converter para novo formato
+      if ((licenseData.fileUrl || licenseData.fileName) && attachments.length === 0) {
+        if (licenseData.fileUrl) {
+          attachments = [{
+            id: Date.now().toString(),
+            fileName: licenseData.fileName || 'Arquivo',
+            fileUrl: licenseData.fileUrl,
+            uploadedAt: new Date().toISOString(),
+            // Não incluir storagePath para dados antigos
+          }];
+        }
+      }
+      
+      return {
+        ...licenseData,
+        id: d.id,
+        attachments: attachments
+      } as License;
+    });
     setLicenses(licensesData);
   }, []);
 
@@ -197,14 +219,22 @@ const App: React.FC = () => {
   };
 
   const addLicense = async (license: Omit<License, 'id'>) => {
-    await addDoc(licensesCollectionRef, license);
+    const licenseWithAttachments = {
+      ...license,
+      attachments: license.attachments || []
+    };
+    await addDoc(licensesCollectionRef, licenseWithAttachments);
     await fetchLicenses();
   };
 
   const updateLicense = async (updatedLicense: License) => {
     const { id, ...licenseData } = updatedLicense;
+    const licenseWithAttachments = {
+      ...licenseData,
+      attachments: licenseData.attachments || []
+    };
     const licenseDocRef = doc(db, 'licenses', id);
-    await updateDoc(licenseDocRef, { ...licenseData });
+    await updateDoc(licenseDocRef, licenseWithAttachments);
     await fetchLicenses();
   };
 

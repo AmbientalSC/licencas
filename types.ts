@@ -1,6 +1,14 @@
 
 export type Status = 'Ativa' | 'Vencida' | 'Em Renovação';
 
+export interface Attachment {
+  id: string;
+  fileName: string;
+  fileUrl: string;
+  uploadedAt: string;
+  storagePath?: string; // Caminho no Firebase Storage para deletar
+}
+
 export interface Unit {
   id: string;
   name: string;
@@ -35,6 +43,7 @@ export interface License {
   responsible?: string;
   fileUrl?: string;
   fileName?: string;
+  attachments?: Attachment[];
 }
 
 export interface LicenseType {

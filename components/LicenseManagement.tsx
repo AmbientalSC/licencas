@@ -9,6 +9,7 @@ import { FilterIcon } from './icons/FilterIcon';
 import { ImportIcon } from './icons/ImportIcon';
 import { ColumnsIcon } from './icons/ColumnsIcon';
 import { ImportLicensesModal } from './ImportLicensesModal';
+import { LicenseDetailsModal } from './LicenseDetailsModal';
 
 interface LicenseManagementProps {
     licenses: License[];
@@ -82,6 +83,8 @@ const LicenseManagement: React.FC<LicenseManagementProps> = ({ licenses, branche
         return saved ? JSON.parse(saved) : {};
     });
     const [uploading, setUploading] = useState(false);
+    const [selectedLicenseForModal, setSelectedLicenseForModal] = useState<License | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     useEffect(() => {
         localStorage.setItem('licenseTableColumns', JSON.stringify(columns));
@@ -345,6 +348,31 @@ const LicenseManagement: React.FC<LicenseManagementProps> = ({ licenses, branche
         }
     };
 
+    const handleRowClick = (license: License) => {
+        setSelectedLicenseForModal(license);
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setSelectedLicenseForModal(null);
+    };
+
+    const handleUpdateLicenseFromModal = async (updatedLicense: License) => {
+        await onUpdateLicense(updatedLicense);
+        // O useEffect abaixo vai sincronizar os dados quando as licenças forem recarregadas
+    };
+
+    // Sincronizar o modal quando as licenças são recarregadas
+    React.useEffect(() => {
+        if (selectedLicenseForModal && isModalOpen) {
+            const updatedLicense = licenses.find(l => l.id === selectedLicenseForModal.id);
+            if (updatedLicense) {
+                setSelectedLicenseForModal(updatedLicense);
+            }
+        }
+    }, [licenses, isModalOpen]);
+
     return (
         <div className="space-y-6">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
@@ -565,7 +593,8 @@ const LicenseManagement: React.FC<LicenseManagementProps> = ({ licenses, branche
                             {sortedLicenses.map((license: License, idx: number) => (
                                 <tr
                                     key={license.id}
-                                    className="bg-white dark:bg-gray-800 transition-all duration-200 ease-out hover:bg-gray-50 hover:shadow-md hover:-translate-y-0.5 dark:hover:bg-gray-700"
+                                    onClick={() => handleRowClick(license)}
+                                    className="bg-white dark:bg-gray-800 transition-all duration-200 ease-out hover:bg-gray-50 hover:shadow-md hover:-translate-y-0.5 dark:hover:bg-gray-700 cursor-pointer"
                                 >
                                     {columns.filter((col: typeof columns[0]) => col.visible).map((col: typeof columns[0], colIdx: number) => {
                                         switch (col.key) {
@@ -584,8 +613,16 @@ const LicenseManagement: React.FC<LicenseManagementProps> = ({ licenses, branche
                                             case 'responsible':
                                                 return <td key={col.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 overflow-hidden text-ellipsis">{license.responsible || '-'}</td>;
                                             case 'fileUrl':
+                                                // Priorizar anexos válidos sobre o fileUrl antigo
+                                                const validAttachments = (license.attachments || []).filter(a => a && a.fileUrl);
+                                                const displayFile = validAttachments.length > 0 ? validAttachments[0] : null;
+                                                
                                                 return <td key={col.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 overflow-hidden text-ellipsis">
-                                                    {license.fileUrl ? (
+                                                    {displayFile ? (
+                                                        <a href={displayFile.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
+                                                            📄 <span className="truncate max-w-[100px]">{displayFile.fileName}</span>
+                                                        </a>
+                                                    ) : license.fileUrl ? (
                                                         <a href={license.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
                                                             📄 <span className="truncate max-w-[100px]">{license.fileName || 'Arquivo'}</span>
                                                         </a>
@@ -627,6 +664,14 @@ const LicenseManagement: React.FC<LicenseManagementProps> = ({ licenses, branche
                     }
                     setShowImport(false);
                 }}
+            />
+            <LicenseDetailsModal
+                license={selectedLicenseForModal}
+                open={isModalOpen}
+                onClose={handleCloseModal}
+                onUpdate={handleUpdateLicenseFromModal}
+                branches={branches}
+                licenseTypes={licenseTypes}
             />
             {showColumns && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
