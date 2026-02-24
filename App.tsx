@@ -7,13 +7,23 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  deleteField,
   writeBatch,
   query,
   where
 } from 'firebase/firestore';
 import { auth } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import type { Unit, License, LicenseType, Branch, User } from './types';
+import type {
+  Unit,
+  License,
+  LicenseType,
+  Branch,
+  User,
+  LaoRecord,
+  LaoCondition,
+  LaoInspection
+} from './types';
 import LicenseManagement from './components/LicenseManagement';
 import LicenseTypeManagement from './components/LicenseTypeManagement';
 import BranchManagement from './components/BranchManagement';
@@ -21,6 +31,7 @@ import DeactivatedLicenses from './components/DeactivatedLicenses';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import UserManagement from './components/UserManagement';
+import LaoConditionsManagement from './components/LaoConditionsManagement';
 import { LicenseIcon } from './components/icons/LicenseIcon';
 import { ExpiredIcon } from './components/icons/ExpiredIcon';
 import { TypeIcon } from './components/icons/TypeIcon';
@@ -29,12 +40,37 @@ import { DashboardIcon } from './components/icons/DashboardIcon';
 import { UsersIcon } from './components/icons/UsersIcon';
 import logo from './assets/ambiental.svg';
 
-type View = 'dashboard' | 'licenses' | 'sgaLicenses' | 'licenseTypes' | 'branches' | 'deactivatedLicenses' | 'users';
+type View =
+  | 'dashboard'
+  | 'licenses'
+  | 'sgaLicenses'
+  | 'licenseTypes'
+  | 'branches'
+  | 'deactivatedLicenses'
+  | 'laoConditions'
+  | 'users';
 
 const unitsCollectionRef = collection(db, 'units');
 const licensesCollectionRef = collection(db, 'licenses');
 const licenseTypesCollectionRef = collection(db, 'licenseTypes');
 const branchesCollectionRef = collection(db, 'branches');
+const laoCollectionRef = collection(db, 'laos');
+const laoConditionsCollectionRef = collection(db, 'laoConditions');
+const laoInspectionsCollectionRef = collection(db, 'laoInspections');
+
+const toFirestoreData = (value: any): any => {
+  if (Array.isArray(value)) {
+    return value.map(item => toFirestoreData(item));
+  }
+  if (value && typeof value === 'object' && !(value instanceof Date)) {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, fieldValue]) => fieldValue !== undefined)
+        .map(([key, fieldValue]) => [key, toFirestoreData(fieldValue)]),
+    );
+  }
+  return value;
+};
 
 const App: React.FC = () => {
   const [view, setView] = useState<View>('dashboard');
@@ -42,6 +78,9 @@ const App: React.FC = () => {
   const [licenses, setLicenses] = useState<License[]>([]);
   const [licenseTypes, setLicenseTypes] = useState<LicenseType[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [laos, setLaos] = useState<LaoRecord[]>([]);
+  const [laoConditions, setLaoConditions] = useState<LaoCondition[]>([]);
+  const [laoInspections, setLaoInspections] = useState<LaoInspection[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<'admin' | 'colaborador' | null>(null);
@@ -115,11 +154,41 @@ const App: React.FC = () => {
     setBranches(branchesData);
   }, []);
 
+  const fetchLaos = useCallback(async () => {
+    const data = await getDocs(laoCollectionRef);
+    const laosData = data.docs.map(d => ({ ...d.data(), id: d.id } as LaoRecord));
+    setLaos(laosData);
+  }, []);
+
+  const fetchLaoConditions = useCallback(async () => {
+    const data = await getDocs(laoConditionsCollectionRef);
+    const laoConditionsData = data.docs.map(
+      d => ({ ...d.data(), id: d.id } as LaoCondition),
+    );
+    setLaoConditions(laoConditionsData);
+  }, []);
+
+  const fetchLaoInspections = useCallback(async () => {
+    const data = await getDocs(laoInspectionsCollectionRef);
+    const laoInspectionsData = data.docs.map(
+      d => ({ ...d.data(), id: d.id } as LaoInspection),
+    );
+    setLaoInspections(laoInspectionsData);
+  }, []);
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        await Promise.all([fetchUnits(), fetchLicenses(), fetchLicenseTypes(), fetchBranches()]);
+        await Promise.all([
+          fetchUnits(),
+          fetchLicenses(),
+          fetchLicenseTypes(),
+          fetchBranches(),
+          fetchLaos(),
+          fetchLaoConditions(),
+          fetchLaoInspections(),
+        ]);
       } catch (error) {
         console.error("Failed to fetch data from Firebase:", error);
       } finally {
@@ -127,7 +196,15 @@ const App: React.FC = () => {
       }
     };
     fetchData();
-  }, [fetchUnits, fetchLicenses, fetchLicenseTypes, fetchBranches]);
+  }, [
+    fetchUnits,
+    fetchLicenses,
+    fetchLicenseTypes,
+    fetchBranches,
+    fetchLaos,
+    fetchLaoConditions,
+    fetchLaoInspections,
+  ]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -157,13 +234,13 @@ const App: React.FC = () => {
               email: user.email,
               role: 'admin',
               active: true,
-              allowedScreens: ['dashboard', 'licenses', 'sgaLicenses', 'deactivatedLicenses', 'licenseTypes', 'branches', 'users'],
+              allowedScreens: ['dashboard', 'licenses', 'sgaLicenses', 'deactivatedLicenses', 'licenseTypes', 'branches', 'laoConditions', 'users'],
               visibleBranchIds: [],
               visibleLicenseTypes: [],
               createdAt: new Date().toISOString()
             });
             setUserRole('admin');
-            setUserProfile({ id: newUserDoc.id, uid: user.uid, name: user.displayName || user.email?.split('@')[0] || 'Admin', email: user.email, role: 'admin', active: true, allowedScreens: ['dashboard', 'licenses', 'sgaLicenses', 'deactivatedLicenses', 'licenseTypes', 'branches', 'users'] });
+            setUserProfile({ id: newUserDoc.id, uid: user.uid, name: user.displayName || user.email?.split('@')[0] || 'Admin', email: user.email, role: 'admin', active: true, allowedScreens: ['dashboard', 'licenses', 'sgaLicenses', 'deactivatedLicenses', 'licenseTypes', 'branches', 'laoConditions', 'users'] });
           } else {
             setUserRole('colaborador');
             setUserProfile({ id: '', uid: user.uid, name: user.displayName || '', email: user.email || '', role: 'colaborador', active: true, allowedScreens: ['dashboard'] });
@@ -291,6 +368,121 @@ const App: React.FC = () => {
     await fetchBranches();
   };
 
+  const addLao = async (lao: Omit<LaoRecord, 'id'>) => {
+    const docRef = await addDoc(laoCollectionRef, toFirestoreData(lao));
+    await fetchLaos();
+    return docRef.id;
+  };
+
+  const updateLao = async (updatedLao: LaoRecord) => {
+    const { id, ...laoData } = updatedLao;
+    const laoDocRef = doc(db, 'laos', id);
+    await updateDoc(laoDocRef, toFirestoreData({ ...laoData }));
+    await fetchLaos();
+  };
+
+  const deleteLao = async (id: string) => {
+    const batch = writeBatch(db);
+    const laoDocRef = doc(db, 'laos', id);
+    batch.delete(laoDocRef);
+
+    const conditionsQuery = query(laoConditionsCollectionRef, where('laoId', '==', id));
+    const conditionsSnapshot = await getDocs(conditionsQuery);
+    conditionsSnapshot.forEach(conditionDoc => {
+      batch.delete(conditionDoc.ref);
+    });
+
+    const inspectionsQuery = query(laoInspectionsCollectionRef, where('laoId', '==', id));
+    const inspectionsSnapshot = await getDocs(inspectionsQuery);
+    inspectionsSnapshot.forEach(inspectionDoc => {
+      batch.delete(inspectionDoc.ref);
+    });
+
+    await batch.commit();
+    await Promise.all([fetchLaos(), fetchLaoConditions(), fetchLaoInspections()]);
+  };
+
+  const addLaoCondition = async (condition: Omit<LaoCondition, 'id'>) => {
+    const payload: any = toFirestoreData(condition);
+    if (condition.frequencyPreset !== 'custom') {
+      delete payload.customMonthsInterval;
+    } else {
+      payload.customMonthsInterval = Number(condition.customMonthsInterval || 0);
+    }
+    const docRef = await addDoc(laoConditionsCollectionRef, payload);
+    await fetchLaoConditions();
+    return docRef.id;
+  };
+
+  const updateLaoCondition = async (updatedCondition: LaoCondition) => {
+    const { id, ...conditionData } = updatedCondition;
+    const conditionDocRef = doc(db, 'laoConditions', id);
+    const payload: any = toFirestoreData({ ...conditionData });
+    if (conditionData.frequencyPreset !== 'custom') {
+      payload.customMonthsInterval = deleteField();
+    } else {
+      payload.customMonthsInterval = Number(conditionData.customMonthsInterval || 0);
+    }
+    await updateDoc(conditionDocRef, payload);
+    await fetchLaoConditions();
+  };
+
+  const deleteLaoCondition = async (id: string) => {
+    const batch = writeBatch(db);
+    const conditionDocRef = doc(db, 'laoConditions', id);
+    batch.delete(conditionDocRef);
+
+    const inspectionsQuery = query(laoInspectionsCollectionRef, where('conditionId', '==', id));
+    const inspectionsSnapshot = await getDocs(inspectionsQuery);
+    inspectionsSnapshot.forEach(inspectionDoc => {
+      batch.delete(inspectionDoc.ref);
+    });
+
+    await batch.commit();
+    await Promise.all([fetchLaoConditions(), fetchLaoInspections()]);
+  };
+
+  const updateConditionLastInspection = async (conditionId: string) => {
+    const inspectionsQuery = query(
+      laoInspectionsCollectionRef,
+      where('conditionId', '==', conditionId),
+    );
+    const inspectionsSnapshot = await getDocs(inspectionsQuery);
+    let lastInspectionDate: string | null = null;
+    inspectionsSnapshot.forEach(item => {
+      const inspectionDate = item.data().inspectionDate as string | undefined;
+      if (!inspectionDate) return;
+      if (!lastInspectionDate || inspectionDate > lastInspectionDate) {
+        lastInspectionDate = inspectionDate;
+      }
+    });
+
+    const conditionDocRef = doc(db, 'laoConditions', conditionId);
+    await updateDoc(conditionDocRef, {
+      lastInspectionDate,
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  const addLaoInspection = async (inspection: Omit<LaoInspection, 'id'>) => {
+    const existingQuery = query(
+      laoInspectionsCollectionRef,
+      where('conditionId', '==', inspection.conditionId),
+    );
+    const existingSnapshot = await getDocs(existingQuery);
+    const hasDuplicate = existingSnapshot.docs.some(
+      item => item.data().inspectionDate === inspection.inspectionDate,
+    );
+    if (hasDuplicate) {
+      return null;
+    }
+
+    const docRef = await addDoc(laoInspectionsCollectionRef, toFirestoreData(inspection));
+    await updateConditionLastInspection(inspection.conditionId);
+    await Promise.all([fetchLaoInspections(), fetchLaoConditions()]);
+    return docRef.id;
+  };
+
   const SidebarItem = ({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) => {
     return (
       <li
@@ -333,6 +525,17 @@ const App: React.FC = () => {
 
   const visibleBranches = (userRole === 'admin' || !userProfile) ? branches : branches.filter(b => !userProfile?.visibleBranchIds || userProfile.visibleBranchIds.length === 0 || userProfile.visibleBranchIds.includes(b.id));
   const visibleLicenseTypes = (userRole === 'admin' || !userProfile) ? licenseTypes : licenseTypes.filter(lt => !userProfile?.visibleLicenseTypes || userProfile.visibleLicenseTypes.length === 0 || userProfile.visibleLicenseTypes.includes(lt.name));
+  const visibleLaos = (userRole === 'admin' || !userProfile)
+    ? laos
+    : laos.filter(lao => {
+      if (!lao.branchId) return false;
+      if (!userProfile?.visibleBranchIds || userProfile.visibleBranchIds.length === 0) return true;
+      return userProfile.visibleBranchIds.includes(lao.branchId);
+    });
+  const visibleLaoIds = new Set(visibleLaos.map(lao => lao.id));
+  const visibleLaoConditions = laoConditions.filter(condition => visibleLaoIds.has(condition.laoId));
+  const visibleConditionIds = new Set(visibleLaoConditions.map(condition => condition.id));
+  const visibleLaoInspections = laoInspections.filter(inspection => visibleConditionIds.has(inspection.conditionId));
 
   void units; void addUnit; void updateUnit; void deleteUnit;
 
@@ -411,6 +614,14 @@ const App: React.FC = () => {
                   label="Filiais"
                   active={view === 'branches'}
                   onClick={() => setView('branches')}
+                />
+              )}
+              {hasScreenAccess('laoConditions') && (
+                <SidebarItem
+                  icon={<TypeIcon />}
+                  label="Condicionantes LAO"
+                  active={view === 'laoConditions'}
+                  onClick={() => setView('laoConditions')}
                 />
               )}
               {hasScreenAccess('users') && (
@@ -499,6 +710,22 @@ const App: React.FC = () => {
             {view === 'deactivatedLicenses' && <DeactivatedLicenses licenses={visibleLicenses.filter(l => !l.active)} branches={visibleBranches} licenseTypes={visibleLicenseTypes} onUpdateLicense={updateLicense} />}
             {view === 'licenseTypes' && <LicenseTypeManagement licenseTypes={licenseTypes} onAddLicenseType={addLicenseType} onUpdateLicenseType={updateLicenseType} onDeleteLicenseType={deleteLicenseType} />}
             {view === 'branches' && <BranchManagement branches={branches} onAddBranch={addBranch} onUpdateBranch={updateBranch} onDeleteBranch={deleteBranch} />}
+            {view === 'laoConditions' && (
+              <LaoConditionsManagement
+                laos={visibleLaos}
+                conditions={visibleLaoConditions}
+                inspections={visibleLaoInspections}
+                branches={visibleBranches}
+                canEdit={hasScreenAccess('laoConditions')}
+                onAddLao={addLao}
+                onUpdateLao={updateLao}
+                onDeleteLao={deleteLao}
+                onAddCondition={addLaoCondition}
+                onUpdateCondition={updateLaoCondition}
+                onDeleteCondition={deleteLaoCondition}
+                onAddInspection={addLaoInspection}
+              />
+            )}
             {view === 'users' && <UserManagement branches={branches} licenseTypes={licenseTypes} />}
           </div>
         </main>

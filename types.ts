@@ -75,3 +75,63 @@ export interface User {
   visibleBranchIds?: string[]; // Branch IDs user can access
   visibleLicenseTypes?: string[]; // License type names user can access
 }
+
+export type LaoCategory = 'Ambiental' | 'SGA';
+
+export type LaoFrequencyPreset =
+  | 'mensal'
+  | 'bimestral'
+  | 'trimestral'
+  | 'semestral'
+  | 'anual'
+  | 'custom';
+
+export interface LaoDetailKV {
+  id: string;
+  key: string;
+  value: string;
+  order: number;
+}
+
+export interface LaoRecord {
+  id: string;
+  laoNumber: string;
+  title: string;
+  empreendimento: string;
+  branchId?: string | null;
+  category: LaoCategory;
+  processNumber?: string;
+  fcei?: string;
+  codam?: string;
+  issueDate?: string;
+  validityDate: string;
+  details: LaoDetailKV[];
+  attachments?: Attachment[];
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LaoCondition {
+  id: string;
+  laoId: string;
+  name: string;
+  frequencyPreset: LaoFrequencyPreset;
+  customMonthsInterval?: number;
+  lastInspectionDate?: string | null;
+  notes?: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LaoInspection {
+  id: string;
+  laoId: string;
+  conditionId: string;
+  inspectionDate: string;
+  note?: string;
+  source: 'manual' | 'import';
+  createdAt: string;
+  createdByUid?: string;
+}

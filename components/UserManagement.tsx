@@ -26,12 +26,13 @@ interface UserManagementProps {
 
 const SCREENS = [
   { id: 'dashboard', label: 'Dashboard' },
-  { id: 'licenses', label: 'Licen√ßas Vigentes' },
-  { id: 'sgaLicenses', label: 'Licen√ßas SGA' },
-  { id: 'deactivatedLicenses', label: 'Licen√ßas Vencidas' },
-  { id: 'licenseTypes', label: 'Tipos de Licen√ßa' },
+  { id: 'licenses', label: 'LicenÁas Vigentes' },
+  { id: 'sgaLicenses', label: 'LicenÁas SGA' },
+  { id: 'deactivatedLicenses', label: 'LicenÁas Vencidas' },
+  { id: 'licenseTypes', label: 'Tipos de LicenÁa' },
   { id: 'branches', label: 'Filiais' },
-  { id: 'users', label: 'Usu√°rios' },
+  { id: 'laoConditions', label: 'Condicionantes LAO' },
+  { id: 'users', label: 'Usu·rios' },
 ];
 
 const UserManagement: React.FC<UserManagementProps> = ({ branches = [], licenseTypes = [] }) => {
@@ -461,3 +462,5 @@ const UserManagement: React.FC<UserManagementProps> = ({ branches = [], licenseT
 };
 
 export default UserManagement;
+
+

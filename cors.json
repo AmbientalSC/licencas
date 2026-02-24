@@ -1,0 +1,5 @@
+[{
+    "origin": ["https://ambientalsc.github.io", "http://localhost:5173"],
+    "method": ["GET"],
+    "maxAgeSeconds": 3600
+}]
