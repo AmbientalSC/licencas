@@ -26,13 +26,13 @@ interface UserManagementProps {
 
 const SCREENS = [
   { id: 'dashboard', label: 'Dashboard' },
-  { id: 'licenses', label: 'Licenças Vigentes' },
-  { id: 'sgaLicenses', label: 'Licenças SGA' },
-  { id: 'deactivatedLicenses', label: 'Licenças Vencidas' },
-  { id: 'licenseTypes', label: 'Tipos de Licença' },
+  { id: 'licenses', label: 'Licenï¿½as Vigentes' },
+  { id: 'sgaLicenses', label: 'Licenï¿½as SGA' },
+  { id: 'deactivatedLicenses', label: 'Licenï¿½as Vencidas' },
+  { id: 'licenseTypes', label: 'Tipos de Licenï¿½a' },
   { id: 'branches', label: 'Filiais' },
   { id: 'laoConditions', label: 'Condicionantes LAO' },
-  { id: 'users', label: 'Usuários' },
+  { id: 'users', label: 'Usuï¿½rios' },
 ];
 
 const UserManagement: React.FC<UserManagementProps> = ({ branches = [], licenseTypes = [] }) => {
@@ -144,21 +144,24 @@ const UserManagement: React.FC<UserManagementProps> = ({ branches = [], licenseT
     setError('');
     setSuccess('');
 
-    // Ensure admin role gets full permissions if role is admin
-    if (formData.role === 'admin') {
-      formData.allowedScreens = SCREENS.map(s => s.id);
-      formData.visibleBranchIds = branches.map(b => b.id);
-      formData.visibleLicenseTypes = licenseTypes.map(lt => lt.name);
-    }
+    const allowedScreens = formData.role === 'admin'
+      ? SCREENS.map(s => s.id)
+      : formData.allowedScreens || [];
+    const visibleBranchIds = formData.role === 'admin'
+      ? branches.map(b => b.id)
+      : formData.visibleBranchIds || [];
+    const visibleLicenseTypes = formData.role === 'admin'
+      ? licenseTypes.map(lt => lt.name)
+      : formData.visibleLicenseTypes || [];
 
     if (editingUser) {
       // Update existing user (Firestore only)
       try {
         const userDoc = doc(db, 'users', editingUser.id);
         await updateDoc(userDoc, {
-          allowedScreens: formData.allowedScreens || [],
-          visibleBranchIds: formData.visibleBranchIds || [],
-          visibleLicenseTypes: formData.visibleLicenseTypes || [],
+          allowedScreens,
+          visibleBranchIds,
+          visibleLicenseTypes,
           name: formData.name,
           role: formData.role,
         });
@@ -177,27 +180,29 @@ const UserManagement: React.FC<UserManagementProps> = ({ branches = [], licenseT
 
       try {
         // Create user in Firebase Auth using a secondary app to avoid logging out the current user
-        const secondaryApp = initializeApp(firebaseConfig, "Secondary");
+        const secondaryApp = initializeApp(firebaseConfig, `Secondary-${Date.now()}`);
         const secondaryAuth = getAuth(secondaryApp);
-        
-        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
-        const uid = userCredential.user.uid;
-        
-        await signOut(secondaryAuth);
-        await deleteApp(secondaryApp);
 
-        // Create user document in Firestore
-        await addDoc(usersCollectionRef, {
-          uid: uid,
-          name: formData.name,
-          email: formData.email,
-          role: formData.role,
-          allowedScreens: formData.allowedScreens || [],
-          visibleBranchIds: formData.visibleBranchIds || [],
-          visibleLicenseTypes: formData.visibleLicenseTypes || [],
-          active: true,
-          createdAt: new Date().toISOString()
-        });
+        try {
+          const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
+          const uid = userCredential.user.uid;
+
+          // Create user document in Firestore
+          await addDoc(usersCollectionRef, {
+            uid: uid,
+            name: formData.name,
+            email: formData.email,
+            role: formData.role,
+            allowedScreens,
+            visibleBranchIds,
+            visibleLicenseTypes,
+            active: true,
+            createdAt: new Date().toISOString()
+          });
+        } finally {
+          await signOut(secondaryAuth).catch(() => undefined);
+          await deleteApp(secondaryApp).catch(() => undefined);
+        }
 
         setSuccess('UsuÃ¡rio criado com sucesso!');
         fetchUsers();
@@ -406,7 +411,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ branches = [], licenseT
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Acesso por Filial</label>
                 <div className="flex items-center gap-2 mb-2">
                   <label className="inline-flex items-center gap-2">
-                    <input type="checkbox" checked={branches.length > 0 && formData.visibleBranchIds.length === branches.length} onChange={handleSelectAllBranches} />
+                    <input type="checkbox" checked={branches.length > 0 && formData.visibleBranchIds.length === branches.length} onChange={handleSelectAllBranches} disabled={formData.role === 'admin'} />
                     <span className="text-sm font-medium">Selecionar todos</span>
                   </label>
                 </div>
@@ -424,7 +429,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ branches = [], licenseT
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Acesso por Tipo de LicenÃ§a</label>
                 <div className="flex items-center gap-2 mb-2">
                   <label className="inline-flex items-center gap-2">
-                    <input type="checkbox" checked={licenseTypes.length > 0 && formData.visibleLicenseTypes.length === licenseTypes.length} onChange={handleSelectAllLicenseTypes} />
+                    <input type="checkbox" checked={licenseTypes.length > 0 && formData.visibleLicenseTypes.length === licenseTypes.length} onChange={handleSelectAllLicenseTypes} disabled={formData.role === 'admin'} />
                     <span className="text-sm font-medium">Selecionar todos</span>
                   </label>
                 </div>

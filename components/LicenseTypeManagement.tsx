@@ -84,9 +84,9 @@ const LicenseTypeManagement: React.FC<LicenseTypeManagementProps> = ({ licenseTy
   
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-xl shadow-lg dark:bg-gray-900 dark:border dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
         <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200">{editingLicenseType ? 'Editar Tipo de Licença' : 'Cadastro de Tipos de Licença'}</h2>
+            <h2 className="text-2xl font-bold text-gray-700 dark:text-white">{editingLicenseType ? 'Editar Tipo de Licença' : 'Cadastro de Tipos de Licença'}</h2>
             <button
               onClick={isFormOpen ? handleCancel : handleAddNewClick}
               className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition-transform transform hover:scale-105"
@@ -99,15 +99,15 @@ const LicenseTypeManagement: React.FC<LicenseTypeManagementProps> = ({ licenseTy
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
             <div className="flex flex-col">
               <label htmlFor="name" className="mb-1 font-semibold text-gray-600 dark:text-gray-300">Tipo de Licença</label>
-              <input type="text" id="name" name="name" value={formState.name} onChange={handleChange} className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent transition" required />
+              <input type="text" id="name" name="name" value={formState.name} onChange={handleChange} className="p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition" required />
             </div>
             <div className="flex flex-col">
               <label htmlFor="renewalProtocolDays" className="mb-1 font-semibold text-gray-600 dark:text-gray-300">Prazo para Protocolo (dias)</label>
-              <input type="number" id="renewalProtocolDays" name="renewalProtocolDays" value={formState.renewalProtocolDays} onChange={handleChange} className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent transition" required />
+              <input type="number" id="renewalProtocolDays" name="renewalProtocolDays" value={formState.renewalProtocolDays} onChange={handleChange} className="p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition" required />
             </div>
             <div className="flex flex-col">
               <label htmlFor="processStartDays" className="mb-1 font-semibold text-gray-600 dark:text-gray-300">Prazo para Início (dias)</label>
-              <input type="number" id="processStartDays" name="processStartDays" value={formState.processStartDays} onChange={handleChange} className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent transition" required />
+              <input type="number" id="processStartDays" name="processStartDays" value={formState.processStartDays} onChange={handleChange} className="p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition" required />
             </div>
             
              <div className="md:col-span-3 flex justify-end gap-4">
@@ -122,11 +122,11 @@ const LicenseTypeManagement: React.FC<LicenseTypeManagementProps> = ({ licenseTy
         )}
       </div>
 
-      <div className="bg-white p-6 rounded-xl shadow-lg dark:bg-gray-900 dark:border dark:border-gray-700">
-        <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200 mb-4">Tipos de Licença Registrados</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+        <h2 className="text-2xl font-bold text-gray-700 dark:text-white mb-4">Tipos de Licença Registrados</h2>
+        <div className="overflow-x-auto table-scrollbar" style={{ transform: 'rotateX(180deg)' }}>
+          <table className="min-w-full bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700" style={{ transform: 'rotateX(180deg)' }}>
+            <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
                 {[
                   { label: 'Tipo de Licença', key: 'name' },
@@ -136,7 +136,7 @@ const LicenseTypeManagement: React.FC<LicenseTypeManagementProps> = ({ licenseTy
                 ].map(col => (
                   <th
                     key={col.label}
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer select-none"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none"
                     onClick={col.key ? () => handleSort(col.key) : undefined}
                   >
                     {col.label}
@@ -147,16 +147,16 @@ const LicenseTypeManagement: React.FC<LicenseTypeManagementProps> = ({ licenseTy
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {sortedLicenseTypes.map(lt => (
-                <tr key={lt.id} className="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <tr key={lt.id} className="bg-white dark:bg-gray-800 transition-all duration-200 ease-out hover:bg-gray-50 hover:shadow-md hover:-translate-y-0.5 dark:hover:bg-gray-700">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{lt.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{lt.renewalProtocolDays}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{lt.processStartDays}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center gap-2">
-                        <button onClick={() => handleEditClick(lt)} className="text-blue-600 hover:text-blue-900 transition-colors"><PencilIcon /></button>
-                        <button onClick={() => onDeleteLicenseType(lt.id)} className="text-red-600 hover:text-red-900 transition-colors"><TrashIcon /></button>
+                        <button onClick={() => handleEditClick(lt)} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"><PencilIcon /></button>
+                        <button onClick={() => onDeleteLicenseType(lt.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors"><TrashIcon /></button>
                     </div>
                   </td>
                 </tr>

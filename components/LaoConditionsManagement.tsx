@@ -4,6 +4,7 @@ import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage
 import type {
   Attachment,
   Branch,
+  License,
   LaoCategory,
   LaoCondition,
   LaoDetailKV,
@@ -37,6 +38,7 @@ interface LaoConditionsManagementProps {
   conditions: LaoCondition[];
   inspections: LaoInspection[];
   branches: Branch[];
+  licenses: License[];
   canEdit: boolean;
   onAddLao: (lao: Omit<LaoRecord, 'id'>) => Promise<string>;
   onUpdateLao: (lao: LaoRecord) => Promise<void>;
@@ -55,6 +57,8 @@ interface InspectionDraft {
   monthIndex: number;
   defaultDate: string;
 }
+
+type LaoFormMode = 'manual' | 'fromLicense';
 
 const MONTH_LABELS = [
   'JAN',
@@ -117,6 +121,7 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
   conditions,
   inspections,
   branches,
+  licenses,
   canEdit,
   onAddLao,
   onUpdateLao,
@@ -135,6 +140,8 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
   const [showLaoModal, setShowLaoModal] = useState(false);
   const [editingLao, setEditingLao] = useState<LaoRecord | null>(null);
   const [laoUploading, setLaoUploading] = useState(false);
+  const [laoFormMode, setLaoFormMode] = useState<LaoFormMode>('manual');
+  const [selectedSourceLicenseId, setSelectedSourceLicenseId] = useState('');
 
   const [showConditionModal, setShowConditionModal] = useState(false);
   const [editingCondition, setEditingCondition] = useState<LaoCondition | null>(null);
@@ -151,6 +158,7 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
     laoNumber: '',
     title: '',
     empreendimento: '',
+    sourceLicenseId: null,
     branchId: '',
     category: 'Ambiental',
     processNumber: '',
@@ -182,6 +190,40 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
     laos.forEach(item => map.set(item.id, item));
     return map;
   }, [laos]);
+
+  const licensesById = useMemo(() => {
+    const map = new Map<string, License>();
+    licenses.forEach(item => map.set(item.id, item));
+    return map;
+  }, [licenses]);
+
+  const getBranchNameById = (branchId?: string | null): string =>
+    branches.find(branch => branch.id === branchId)?.name || '-';
+
+  const getSourceLicenseLabel = (license: License): string => {
+    const unidade = getBranchNameById(license.unitId);
+    const licenca = license.licenseType || '-';
+    const numeroAno = license.numberYear || '-';
+    return `${unidade} - ${licenca} - ${numeroAno}`;
+  };
+
+  const sourceLicenses = useMemo(
+    () =>
+      licenses
+        .filter(license => license.active)
+        .filter(license => {
+          const category = license.category || 'Ambiental';
+          return category === 'Ambiental' || category === 'SGA';
+        })
+        .sort((a, b) =>
+          `${a.numberYear} ${a.description}`.localeCompare(
+            `${b.numberYear} ${b.description}`,
+            'pt-BR',
+            { sensitivity: 'base' },
+          ),
+        ),
+    [licenses],
+  );
 
   const conditionsByLao = useMemo(() => {
     const map = new Map<string, LaoCondition[]>();
@@ -325,12 +367,48 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
     };
   }, [branches, conditions, inspections, selectedLaoForDetails, selectedYear]);
 
+  const mapLicenseToLaoFields = (
+    license: License,
+  ): Pick<
+    Omit<LaoRecord, 'id'>,
+    | 'laoNumber'
+    | 'title'
+    | 'empreendimento'
+    | 'branchId'
+    | 'category'
+    | 'processNumber'
+    | 'issueDate'
+    | 'validityDate'
+    | 'sourceLicenseId'
+  > => ({
+    laoNumber: license.numberYear || '',
+    title: license.description?.trim() || license.numberYear || '',
+    empreendimento: license.description || '',
+    branchId: license.unitId || '',
+    category: (license.category === 'SGA' ? 'SGA' : 'Ambiental') as LaoCategory,
+    processNumber: license.processNumber || '',
+    issueDate: license.issueDate || '',
+    validityDate: license.originalExpiryDate || '',
+    sourceLicenseId: license.id,
+  });
+
+  const applyLicenseDataToLaoForm = (license: License): void => {
+    setLaoForm(prev => ({
+      ...prev,
+      ...mapLicenseToLaoFields(license),
+    }));
+    setSelectedSourceLicenseId(license.id);
+  };
+
   const resetLaoForm = (): void => {
     setEditingLao(null);
+    setLaoFormMode('manual');
+    setSelectedSourceLicenseId('');
     setLaoForm({
       laoNumber: '',
       title: '',
       empreendimento: '',
+      sourceLicenseId: null,
       branchId: '',
       category: 'Ambiental',
       processNumber: '',
@@ -352,9 +430,12 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
   };
 
   const openEditLao = (lao: LaoRecord): void => {
+    setLaoFormMode('manual');
+    setSelectedSourceLicenseId(lao.sourceLicenseId || '');
     setEditingLao(lao);
     setLaoForm({
       ...lao,
+      sourceLicenseId: lao.sourceLicenseId || null,
       branchId: lao.branchId || '',
       details:
         lao.details.length > 0
@@ -363,6 +444,43 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
       attachments: lao.attachments || [],
     });
     setShowLaoModal(true);
+  };
+
+  const handleLaoModeChange = (mode: LaoFormMode): void => {
+    setLaoFormMode(mode);
+    if (mode === 'manual') {
+      setSelectedSourceLicenseId('');
+      setLaoForm(prev => ({
+        ...prev,
+        sourceLicenseId: null,
+      }));
+    }
+  };
+
+  const handleApplySelectedSourceLicense = (): void => {
+    if (!selectedSourceLicenseId) {
+      alert('Selecione uma licença para puxar os dados.');
+      return;
+    }
+    const source = sourceLicenses.find(item => item.id === selectedSourceLicenseId);
+    if (!source) {
+      alert('Licença selecionada não está disponível.');
+      return;
+    }
+    applyLicenseDataToLaoForm(source);
+  };
+
+  const handleReloadFromSourceLicense = (): void => {
+    if (!laoForm.sourceLicenseId) {
+      alert('Esta LAO não possui licença de origem vinculada.');
+      return;
+    }
+    const source = licensesById.get(laoForm.sourceLicenseId);
+    if (!source) {
+      alert('Licença de origem não encontrada.');
+      return;
+    }
+    applyLicenseDataToLaoForm(source);
   };
 
   const handleLaoFieldChange = (
@@ -486,10 +604,22 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
         order: index,
       }));
 
+    const hasDuplicate = laos.some(existing => {
+      if (editingLao && existing.id === editingLao.id) return false;
+      return (
+        normalizeText(existing.laoNumber) === normalizeText(laoForm.laoNumber) &&
+        normalizeText(existing.empreendimento) === normalizeText(laoForm.empreendimento)
+      );
+    });
+    if (hasDuplicate) {
+      alert('Atenção: já existe uma LAO com o mesmo número e empreendimento. O cadastro seguirá normalmente.');
+    }
+
     if (editingLao) {
       await onUpdateLao({
         ...editingLao,
         ...laoForm,
+        sourceLicenseId: laoForm.sourceLicenseId || null,
         branchId: laoForm.branchId || null,
         details: sanitizedDetails,
         attachments: laoForm.attachments || [],
@@ -498,6 +628,7 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
     } else {
       await onAddLao({
         ...laoForm,
+        sourceLicenseId: laoForm.sourceLicenseId || null,
         branchId: laoForm.branchId || null,
         details: sanitizedDetails,
         attachments: laoForm.attachments || [],
@@ -885,16 +1016,19 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
   const sortedBranches = [...branches].sort((a, b) =>
     a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }),
   );
+  const linkedSourceLicense = laoForm.sourceLicenseId
+    ? licensesById.get(laoForm.sourceLicenseId) || null
+    : null;
 
   return (
     <div className="space-y-6">
       <div className="rounded-xl bg-white p-6 shadow-lg dark:bg-gray-800">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-            Condicionantes LAO
+            Condicionantes
           </h2>
           <div className="flex items-center gap-2">
-            <button
+            {/* <button
               type="button"
               onClick={() => setShowImportModal(true)}
               className="rounded-lg bg-slate-600 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700"
@@ -903,7 +1037,7 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
                 <ImportIcon />
                 Importar Workbook
               </span>
-            </button>
+            </button> */}
             {canEdit && (
               <button
                 type="button"
@@ -912,7 +1046,7 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
               >
                 <span className="inline-flex items-center gap-2">
                   <PlusIcon />
-                  Nova LAO
+                  Nova
                 </span>
               </button>
             )}
@@ -982,8 +1116,8 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
       </div>
 
       <div className="rounded-xl bg-white p-6 shadow-lg dark:bg-gray-800">
-        <div className="overflow-x-auto">
-          <table className="min-w-[1500px] table-fixed border-collapse bg-white dark:bg-gray-800">
+        <div className="overflow-x-auto table-scrollbar" style={{ transform: 'rotateX(180deg)' }}>
+          <table className="min-w-[1500px] table-fixed border-collapse bg-white dark:bg-gray-800" style={{ transform: 'rotateX(180deg)' }}>
             <thead>
               <tr>
                 <th className="w-72 border border-slate-500 bg-slate-700 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide !text-slate-50 dark:border-gray-600 dark:bg-gray-700 dark:!text-gray-100">
@@ -1031,7 +1165,7 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
                           <button
                             type="button"
                             onClick={() => setSelectedLaoForDetails(lao)}
-                            className="text-left text-sm font-semibold text-blue-700 underline-offset-2 hover:underline dark:text-blue-300"
+                            className="text-left text-sm font-semibold text-[rgb(0_114_241)] underline-offset-2 hover:underline dark:text-[rgb(0_114_241)]"
                             title="Abrir detalhes da LAO"
                           >
                             {lao.laoNumber}
@@ -1109,7 +1243,7 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
                             <button
                               type="button"
                               onClick={() => setSelectedLaoForDetails(lao)}
-                              className="text-left text-sm font-semibold text-blue-700 underline-offset-2 hover:underline dark:text-blue-300"
+                              className="text-left text-sm font-semibold text-[rgb(0_114_241)] underline-offset-2 hover:underline dark:text-[rgb(0_114_241)]"
                               title="Abrir detalhes da LAO"
                             >
                               {lao.laoNumber}
@@ -1228,7 +1362,7 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
                           status === 'done'
                             ? 'bg-emerald-600 text-white'
                             : status === 'planned'
-                              ? 'bg-sky-300 text-sky-950 dark:bg-blue-900/40 dark:text-blue-100'
+                              ? 'bg-[#1d4ed824] text-sky-950 dark:bg-[#1d4ed824] dark:text-white'
                               : status === 'overdue'
                                 ? 'bg-rose-300 text-rose-950 dark:bg-red-900/40 dark:text-red-100'
                                 : 'bg-white text-slate-500 dark:bg-gray-900 dark:text-gray-500';
@@ -1487,6 +1621,89 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
             <h3 className="mb-4 text-xl font-bold text-gray-800 dark:text-white">
               {editingLao ? 'Editar LAO' : 'Nova LAO'}
             </h3>
+
+            {!editingLao && (
+              <div className="mb-4 rounded border border-gray-200 p-4 dark:border-gray-700">
+                <div className="mb-2 text-sm font-semibold text-gray-800 dark:text-white">
+                  Origem dos dados
+                </div>
+                <div className="flex flex-wrap items-center gap-4">
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="laoFormMode"
+                      checked={laoFormMode === 'manual'}
+                      onChange={() => handleLaoModeChange('manual')}
+                    />
+                    Cadastro manual
+                  </label>
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="laoFormMode"
+                      checked={laoFormMode === 'fromLicense'}
+                      onChange={() => setLaoFormMode('fromLicense')}
+                    />
+                    Importar de licença
+                  </label>
+                </div>
+
+                {laoFormMode === 'fromLicense' && (
+                  <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto]">
+                    <select
+                      value={selectedSourceLicenseId}
+                      onChange={event => setSelectedSourceLicenseId(event.target.value)}
+                      className="rounded border border-gray-300 p-2 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                    >
+                      <option value="">Selecione uma licença...</option>
+                      {sourceLicenses.map(license => {
+                        return (
+                          <option key={license.id} value={license.id}>
+                            {getSourceLicenseLabel(license)}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleApplySelectedSourceLicense}
+                      className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                    >
+                      Puxar dados
+                    </button>
+                  </div>
+                )}
+
+                {laoForm.sourceLicenseId && (
+                  <p className="mt-2 text-xs text-slate-600 dark:text-gray-300">
+                    Licença de origem vinculada ao cadastro.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {editingLao && laoForm.sourceLicenseId && (
+              <div className="mb-4 rounded border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/60 dark:bg-blue-900/20">
+                <div className="text-sm font-semibold text-slate-900 dark:text-white">
+                  LAO vinculada a licença de origem
+                </div>
+                <div className="mt-1 text-xs text-slate-700 dark:text-gray-200">
+                  {linkedSourceLicense
+                    ? getSourceLicenseLabel(linkedSourceLicense)
+                    : 'Licença de origem não encontrada'}
+                </div>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={handleReloadFromSourceLicense}
+                    className="rounded bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-800"
+                  >
+                    Recarregar dados da licença
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="flex flex-col">
                 <label className="mb-1 text-sm font-medium">Número da LAO</label>
@@ -1599,7 +1816,7 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
                   onChange={handleLaoFieldChange}
                 />
                 <label htmlFor="laoActive" className="text-sm font-medium">
-                  LAO ativa
+                  Ativa
                 </label>
               </div>
             </div>

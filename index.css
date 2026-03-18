@@ -2,58 +2,117 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Theme variables: light defaults in :root, dark overrides in .dark */
-:root {
+:root,
+html.light {
   --color-bg: #f3f4f6;
-  --color-bg-light: #ffffff;
-  --color-text: #111827;
-  --color-text-light: #374151;
-  --color-primary: #2563eb;
-  --color-danger: #ef4444;
-  --color-success: #16a34a;
-  --color-warning: #f59e0b;
+  --color-surface: #f3f4f6;
+  --color-surface-strong: #e5e7eb;
+  --color-text-strong: #0f172a;
+  --color-text-default: #1f2937;
+  --color-text-muted: #6b7280;
+  --color-text-soft: #94a3b8;
+  --color-border: #e5e7eb;
+  --color-hover: #eef2f7;
+  --color-scroll-track: #f1f5f9;
+  --color-scroll-thumb: #94a3b8;
+  --color-scroll-thumb-hover: #64748b;
+  color-scheme: light;
 }
 
-.dark {
+html.dark {
   --color-bg: #0f1724;
-  --color-bg-light: #111827;
-  --color-text: #f4f4f5;
-  --color-text-light: #9ca3af;
-  --color-primary: #60a5fa;
-  --color-danger: #fca5a5;
-  --color-success: #bbf7d0;
-  --color-warning: #facc15;
+  --color-surface: #1f2937;
+  --color-surface-strong: #111827;
+  --color-text-strong: #e5e7eb;
+  --color-text-default: #cbd5e1;
+  --color-text-muted: #9ca3af;
+  --color-text-soft: #64748b;
+  --color-border: #374151;
+  --color-hover: rgba(51, 65, 85, 0.5);
+  --color-scroll-track: #1f2937;
+  --color-scroll-thumb: #4b5563;
+  --color-scroll-thumb-hover: #6b7280;
+  color-scheme: dark;
 }
 
 body {
   background-color: var(--color-bg);
-  color: var(--color-text);
+  color: var(--color-text-strong);
+}
+
+aside,
+header,
+footer {
+  background-color: var(--color-surface);
+  color: var(--color-text-strong);
+  border-color: var(--color-border);
 }
 
 input,
 textarea,
-select,
-.form-control,
-.rounded-xl,
-.fixed {
-  background-color: var(--color-bg-light);
-  color: var(--color-text);
+select {
+  background-color: var(--color-surface);
+  color: var(--color-text-strong);
+  border-color: var(--color-border);
 }
 
-table thead th {
-  color: var(--color-text-light);
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-text-muted);
 }
 
-table tbody tr td {
-  color: var(--color-text);
+.bg-white {
+  background-color: var(--color-surface) !important;
 }
 
-html:not(.dark) .bg-gray-50 {
-  background-color: #f9fafb !important;
+.bg-gray-50,
+.bg-gray-100,
+.bg-slate-50,
+.bg-slate-100,
+.bg-slate-200 {
+  background-color: var(--color-bg) !important;
 }
 
-html:not(.dark) .border-gray-200 {
-  border-color: #e5e7eb !important;
+.border-gray-100,
+.border-gray-200,
+.border-gray-300,
+.border-gray-700,
+.border-slate-200,
+.border-slate-300,
+.border-slate-400,
+.border-slate-500 {
+  border-color: var(--color-border) !important;
+}
+
+html.light .text-gray-900,
+html.light .text-gray-800,
+html.light .text-slate-900,
+html.light .text-slate-800 {
+  color: var(--color-text-strong) !important;
+}
+
+html.light .text-gray-700,
+html.light .text-gray-600,
+html.light .text-slate-700,
+html.light .text-slate-600 {
+  color: var(--color-text-default) !important;
+}
+
+html.light .text-gray-500,
+html.light .text-gray-400,
+html.light .text-slate-500,
+html.light .text-slate-400 {
+  color: var(--color-text-muted) !important;
+}
+
+html.light thead.bg-gray-50,
+html.light thead.bg-slate-100 {
+  background-color: var(--color-surface-strong) !important;
+}
+
+.hover\:bg-gray-100:hover,
+.hover\:bg-gray-50:hover {
+  background-color: var(--color-hover) !important;
 }
 
 @keyframes fadeIn {
@@ -72,43 +131,40 @@ html:not(.dark) .border-gray-200 {
   animation: fadeIn 0.3s ease-out forwards;
 }
 
-aside,
-header {
-  background-color: var(--color-bg-light);
-  color: var(--color-text);
-  border-color: var(--color-border, #e5e7eb);
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-html.dark aside,
-html.dark header {
-  background-color: var(--color-bg-light);
-  color: var(--color-text);
+::-webkit-scrollbar-track {
+  background: var(--color-scroll-track);
 }
 
-html:not(.dark) aside,
-html:not(.dark) header {
-  background-color: var(--color-bg-light) !important;
-  color: var(--color-text) !important;
-  border-color: #e5e7eb !important;
+::-webkit-scrollbar-thumb {
+  background: var(--color-scroll-thumb);
+  border-radius: 4px;
 }
 
-/* Custom scrollbar for tables */
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-scroll-thumb-hover);
+}
+
 .table-scrollbar::-webkit-scrollbar {
   height: 14px;
   width: 14px;
 }
 
 .table-scrollbar::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--color-scroll-track);
 }
 
 .table-scrollbar::-webkit-scrollbar-thumb {
-  background: #888;
+  background: var(--color-scroll-thumb);
   border-radius: 7px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
 
 .table-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: var(--color-scroll-thumb-hover);
 }

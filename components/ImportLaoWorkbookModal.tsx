@@ -1,5 +1,4 @@
 import React, { useRef, useState } from 'react';
-import * as XLSX from 'xlsx';
 import type { LaoDetailKV, LaoFrequencyPreset } from '../types';
 import {
   getFrequencyPresetFromLabel,
@@ -54,6 +53,15 @@ interface ImportLaoWorkbookModalProps {
 }
 
 const IGNORED_SHEETS = new Set(['capa', 'lai', 'cronograma', 'plan1']);
+
+let xlsxModulePromise: Promise<typeof import('xlsx')> | null = null;
+
+const loadXlsxModule = async (): Promise<typeof import('xlsx')> => {
+  if (!xlsxModulePromise) {
+    xlsxModulePromise = import('xlsx');
+  }
+  return xlsxModulePromise;
+};
 
 function uniqueSortedDates(values: string[]): string[] {
   return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
@@ -135,10 +143,11 @@ function mergeCondition(
   return cloned;
 }
 
-function parseWorkbook(fileData: ArrayBuffer): {
+async function parseWorkbook(fileData: ArrayBuffer): Promise<{
   items: ParsedLaoImportItem[];
   parserErrors: string[];
-} {
+}> {
+  const XLSX = await loadXlsxModule();
   const workbook = XLSX.read(fileData, { cellDates: true });
   const parserErrors: string[] = [];
 
@@ -389,7 +398,7 @@ export const ImportLaoWorkbookModal: React.FC<ImportLaoWorkbookModalProps> = ({
 
     try {
       const buffer = await file.arrayBuffer();
-      const parsed = parseWorkbook(buffer);
+      const parsed = await parseWorkbook(buffer);
       const importResult = await onImportParsed(parsed.items, parsed.parserErrors);
       setResult(importResult);
       setMessage('Importação concluída.');

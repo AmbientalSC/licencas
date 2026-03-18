@@ -98,6 +98,7 @@ export interface LaoRecord {
   laoNumber: string;
   title: string;
   empreendimento: string;
+  sourceLicenseId?: string | null;
   branchId?: string | null;
   category: LaoCategory;
   processNumber?: string;

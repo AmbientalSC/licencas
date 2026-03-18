@@ -1,5 +1,4 @@
 import React, { useRef, useState } from 'react';
-import * as XLSX from 'xlsx';
 import type { Branch, LicenseType, License } from '../types';
 
 interface ImportLicensesModalProps {
@@ -23,12 +22,22 @@ const TEMPLATE_HEADERS = [
   'Observação',
 ];
 
+let xlsxModulePromise: Promise<typeof import('xlsx')> | null = null;
+
+const loadXlsxModule = async (): Promise<typeof import('xlsx')> => {
+  if (!xlsxModulePromise) {
+    xlsxModulePromise = import('xlsx');
+  }
+  return xlsxModulePromise;
+};
+
 export const ImportLicensesModal: React.FC<ImportLicensesModalProps> = ({ open, onClose, branches, licenseTypes, onAddBranch, onImport }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = async () => {
+    const XLSX = await loadXlsxModule();
     const ws = XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Licenças');
@@ -41,6 +50,7 @@ export const ImportLicensesModal: React.FC<ImportLicensesModalProps> = ({ open, 
     setImporting(true);
     setMessage(null);
     try {
+      const XLSX = await loadXlsxModule();
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -82,7 +92,7 @@ export const ImportLicensesModal: React.FC<ImportLicensesModalProps> = ({ open, 
       }
       const licenses: Omit<License, 'id'>[] = dataRows.map((row) => {
         const licenseTypeObj = licenseTypes.find(lt => lt.name === row[1]);
-        const expiryDate = excelDateToISO(row[7]);
+        const expiryDate = excelDateToISO(row[7], XLSX);
         let prorrogaDate = '';
         let processStartDate = '';
         if (licenseTypeObj && expiryDate) {
@@ -104,7 +114,7 @@ export const ImportLicensesModal: React.FC<ImportLicensesModalProps> = ({ open, 
           description: row[3],
           licensingAgency: row[4],
           processNumber: row[5],
-          issueDate: excelDateToISO(row[6]),
+          issueDate: excelDateToISO(row[6], XLSX),
           originalExpiryDate: expiryDate,
           prorrogaDate,
           processStartDate,
@@ -126,17 +136,12 @@ export const ImportLicensesModal: React.FC<ImportLicensesModalProps> = ({ open, 
     setImporting(false);
   };
 
-  function findBranchId(name: string): string {
-    const branch = branches.find(b => b.name.trim().toLowerCase() === name.trim().toLowerCase());
-    return branch ? branch.id : '';
-  }
-
-  function excelDateToISO(value: any): string {
+  function excelDateToISO(value: any, xlsxModule: typeof import('xlsx')): string {
     if (!value) return '';
     if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
     if (typeof value === 'number') {
       // Excel date serial
-      const date = XLSX.SSF.parse_date_code(value);
+      const date = xlsxModule.SSF.parse_date_code(value);
       if (!date) return '';
       const mm = String(date.m).padStart(2, '0');
       const dd = String(date.d).padStart(2, '0');

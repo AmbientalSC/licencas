@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { db } from './firebase';
 import {
   collection,
@@ -24,14 +24,7 @@ import type {
   LaoCondition,
   LaoInspection
 } from './types';
-import LicenseManagement from './components/LicenseManagement';
-import LicenseTypeManagement from './components/LicenseTypeManagement';
-import BranchManagement from './components/BranchManagement';
-import DeactivatedLicenses from './components/DeactivatedLicenses';
 import Login from './components/Login';
-import Dashboard from './components/Dashboard';
-import UserManagement from './components/UserManagement';
-import LaoConditionsManagement from './components/LaoConditionsManagement';
 import { LicenseIcon } from './components/icons/LicenseIcon';
 import { ExpiredIcon } from './components/icons/ExpiredIcon';
 import { TypeIcon } from './components/icons/TypeIcon';
@@ -39,6 +32,14 @@ import { BuildingIcon } from './components/icons/BuildingIcon';
 import { DashboardIcon } from './components/icons/DashboardIcon';
 import { UsersIcon } from './components/icons/UsersIcon';
 import logo from './assets/ambiental.svg';
+
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const LicenseManagement = lazy(() => import('./components/LicenseManagement'));
+const LicenseTypeManagement = lazy(() => import('./components/LicenseTypeManagement'));
+const BranchManagement = lazy(() => import('./components/BranchManagement'));
+const DeactivatedLicenses = lazy(() => import('./components/DeactivatedLicenses'));
+const LaoConditionsManagement = lazy(() => import('./components/LaoConditionsManagement'));
+const UserManagement = lazy(() => import('./components/UserManagement'));
 
 type View =
   | 'dashboard'
@@ -49,6 +50,9 @@ type View =
   | 'deactivatedLicenses'
   | 'laoConditions'
   | 'users';
+
+type ThemeMode = 'light' | 'dark';
+type ThemePreference = ThemeMode | 'system';
 
 const unitsCollectionRef = collection(db, 'units');
 const licensesCollectionRef = collection(db, 'licenses');
@@ -87,25 +91,55 @@ const App: React.FC = () => {
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [theme, setTheme] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('theme') || 'light';
+  const [themePreference, setThemePreference] = useState<ThemePreference>(() => {
+    if (typeof window === 'undefined') return 'system';
+    const savedPreference = localStorage.getItem('themePreference');
+    if (savedPreference === 'light' || savedPreference === 'dark' || savedPreference === 'system') {
+      return savedPreference;
     }
-    return 'light';
+    return 'system';
   });
+  const [theme, setTheme] = useState<ThemeMode>('light');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('theme', theme);
-  }, [theme]);
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const resolveTheme = (preference: ThemePreference, isDark: boolean): ThemeMode => {
+      if (preference === 'system') {
+        return isDark ? 'dark' : 'light';
+      }
+      return preference;
+    };
 
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+    setTheme(resolveTheme(themePreference, mediaQuery.matches));
+
+    const handler = (event: MediaQueryListEvent) => {
+      if (themePreference === 'system') {
+        setTheme(event.matches ? 'dark' : 'light');
+      }
+    };
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handler);
+      return () => mediaQuery.removeEventListener('change', handler);
+    }
+
+    mediaQuery.addListener(handler);
+    return () => mediaQuery.removeListener(handler);
+  }, [themePreference]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const root = document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(theme);
+    root.style.colorScheme = theme;
+    localStorage.setItem('themePreference', themePreference);
+    localStorage.setItem('theme', theme);
+  }, [theme, themePreference]);
+
+  const toggleThemePreference = () => {
+    setThemePreference(prev => (prev === 'dark' ? 'light' : 'dark'));
   };
 
   const fetchUnits = useCallback(async () => {
@@ -619,7 +653,7 @@ const App: React.FC = () => {
               {hasScreenAccess('laoConditions') && (
                 <SidebarItem
                   icon={<TypeIcon />}
-                  label="Condicionantes LAO"
+                  label="Condicionantes"
                   active={view === 'laoConditions'}
                   onClick={() => setView('laoConditions')}
                 />
@@ -677,9 +711,10 @@ const App: React.FC = () => {
           {/* Direita - Ícones de ação */}
           <div className="flex items-center gap-2 min-w-[200px] justify-end">
             <button
-              onClick={toggleTheme}
+              onClick={toggleThemePreference}
               className="p-2 rounded-lg hover:bg-slate-700 transition-colors text-white"
               aria-label="Alternar tema"
+              title="Alternar tema"
             >
               {theme === 'dark' ? (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -704,29 +739,38 @@ const App: React.FC = () => {
         {/* Main Content Area */}
         <main className="flex-1 p-6 lg:p-8 overflow-x-hidden">
           <div className="w-full">
-            {view === 'dashboard' && <Dashboard licenses={visibleLicenses} branches={branches} licenseTypes={licenseTypes} />}
-            {view === 'licenses' && <LicenseManagement licenses={visibleLicenses} branches={visibleBranches} licenseTypes={visibleLicenseTypes} onAddLicense={addLicense} onUpdateLicense={updateLicense} onDeleteLicense={deleteLicense} onAddBranch={addBranch} category="Ambiental" />}
-            {view === 'sgaLicenses' && <LicenseManagement licenses={visibleLicenses} branches={visibleBranches} licenseTypes={visibleLicenseTypes} onAddLicense={addLicense} onUpdateLicense={updateLicense} onDeleteLicense={deleteLicense} onAddBranch={addBranch} category="SGA" />}
-            {view === 'deactivatedLicenses' && <DeactivatedLicenses licenses={visibleLicenses.filter(l => !l.active)} branches={visibleBranches} licenseTypes={visibleLicenseTypes} onUpdateLicense={updateLicense} />}
-            {view === 'licenseTypes' && <LicenseTypeManagement licenseTypes={licenseTypes} onAddLicenseType={addLicenseType} onUpdateLicenseType={updateLicenseType} onDeleteLicenseType={deleteLicenseType} />}
-            {view === 'branches' && <BranchManagement branches={branches} onAddBranch={addBranch} onUpdateBranch={updateBranch} onDeleteBranch={deleteBranch} />}
-            {view === 'laoConditions' && (
-              <LaoConditionsManagement
-                laos={visibleLaos}
-                conditions={visibleLaoConditions}
-                inspections={visibleLaoInspections}
-                branches={visibleBranches}
-                canEdit={hasScreenAccess('laoConditions')}
-                onAddLao={addLao}
-                onUpdateLao={updateLao}
-                onDeleteLao={deleteLao}
-                onAddCondition={addLaoCondition}
-                onUpdateCondition={updateLaoCondition}
-                onDeleteCondition={deleteLaoCondition}
-                onAddInspection={addLaoInspection}
-              />
-            )}
-            {view === 'users' && <UserManagement branches={branches} licenseTypes={licenseTypes} />}
+            <Suspense
+              fallback={(
+                <div className="py-10 text-center text-gray-600 dark:text-gray-300">
+                  Carregando tela...
+                </div>
+              )}
+            >
+              {view === 'dashboard' && <Dashboard licenses={visibleLicenses} branches={branches} licenseTypes={licenseTypes} />}
+              {view === 'licenses' && <LicenseManagement licenses={visibleLicenses} branches={visibleBranches} licenseTypes={visibleLicenseTypes} onAddLicense={addLicense} onUpdateLicense={updateLicense} onDeleteLicense={deleteLicense} onAddBranch={addBranch} category="Ambiental" />}
+              {view === 'sgaLicenses' && <LicenseManagement licenses={visibleLicenses} branches={visibleBranches} licenseTypes={visibleLicenseTypes} onAddLicense={addLicense} onUpdateLicense={updateLicense} onDeleteLicense={deleteLicense} onAddBranch={addBranch} category="SGA" />}
+              {view === 'deactivatedLicenses' && <DeactivatedLicenses licenses={visibleLicenses.filter(l => !l.active)} branches={visibleBranches} licenseTypes={visibleLicenseTypes} onUpdateLicense={updateLicense} />}
+              {view === 'licenseTypes' && <LicenseTypeManagement licenseTypes={licenseTypes} onAddLicenseType={addLicenseType} onUpdateLicenseType={updateLicenseType} onDeleteLicenseType={deleteLicenseType} />}
+              {view === 'branches' && <BranchManagement branches={branches} onAddBranch={addBranch} onUpdateBranch={updateBranch} onDeleteBranch={deleteBranch} />}
+              {view === 'laoConditions' && (
+                <LaoConditionsManagement
+                  laos={visibleLaos}
+                  conditions={visibleLaoConditions}
+                  inspections={visibleLaoInspections}
+                  branches={visibleBranches}
+                  licenses={visibleLicenses}
+                  canEdit={hasScreenAccess('laoConditions')}
+                  onAddLao={addLao}
+                  onUpdateLao={updateLao}
+                  onDeleteLao={deleteLao}
+                  onAddCondition={addLaoCondition}
+                  onUpdateCondition={updateLaoCondition}
+                  onDeleteCondition={deleteLaoCondition}
+                  onAddInspection={addLaoInspection}
+                />
+              )}
+              {view === 'users' && <UserManagement branches={branches} licenseTypes={licenseTypes} />}
+            </Suspense>
           </div>
         </main>
 

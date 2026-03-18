@@ -78,28 +78,28 @@ const Dashboard: React.FC<DashboardProps> = ({ licenses, branches, licenseTypes 
                     title="Licenças Ativas"
                     value={totalActive}
                     icon={<LicenseIcon className="h-8 w-8" />}
-                    color="text-blue-700"
+                    color="text-blue-700 dark:text-blue-300"
                     bgColor="bg-blue-100 dark:bg-blue-900/20"
                 />
                 <StatCard
                     title="Em Alerta"
                     value={totalWarning}
                     icon={<ExpiredIcon className="h-8 w-8" />}
-                    color="text-yellow-700"
+                    color="text-yellow-700 dark:text-yellow-300"
                     bgColor="bg-yellow-100 dark:bg-yellow-900/20"
                 />
                 <StatCard
                     title="Vencidas (Ativas)"
                     value={totalExpired}
                     icon={<ExpiredIcon className="h-8 w-8" />}
-                    color="text-red-700"
+                    color="text-red-700 dark:text-red-300"
                     bgColor="bg-red-100 dark:bg-red-900/20"
                 />
                 <StatCard
                     title="Filiais"
                     value={totalBranches}
                     icon={<BuildingIcon className="h-8 w-8" />}
-                    color="text-green-700"
+                    color="text-green-700 dark:text-green-300"
                     bgColor="bg-green-100 dark:bg-green-900/20"
                 />
             </div>
@@ -111,11 +111,11 @@ const Dashboard: React.FC<DashboardProps> = ({ licenses, branches, licenseTypes 
                     <div className="overflow-x-auto" style={{ transform: 'rotateX(180deg)' }}>
                         <table className="min-w-full" style={{ transform: 'rotateX(180deg)' }}>
                             <thead>
-                                <tr className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700">
-                                    <th className="pb-3">Filial</th>
-                                    <th className="pb-3">Licença</th>
-                                    <th className="pb-3">Vencimento</th>
-                                    <th className="pb-3">Status</th>
+                                <tr className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-2 py-2 align-middle bg-gray-100/80 dark:bg-gray-700/40 border-y border-gray-200 dark:border-gray-600 first:rounded-l-md first:border-l last:rounded-r-md last:border-r">Filial</th>
+                                    <th className="px-2 py-2 align-middle bg-gray-100/80 dark:bg-gray-700/40 border-y border-gray-200 dark:border-gray-600 first:rounded-l-md first:border-l last:rounded-r-md last:border-r">Licença</th>
+                                    <th className="px-2 py-2 align-middle bg-gray-100/80 dark:bg-gray-700/40 border-y border-gray-200 dark:border-gray-600 first:rounded-l-md first:border-l last:rounded-r-md last:border-r">Vencimento</th>
+                                    <th className="px-2 py-2 align-middle bg-gray-100/80 dark:bg-gray-700/40 border-y border-gray-200 dark:border-gray-600 first:rounded-l-md first:border-l last:rounded-r-md last:border-r">Status</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -126,10 +126,10 @@ const Dashboard: React.FC<DashboardProps> = ({ licenses, branches, licenseTypes 
                                         <td className="py-3 text-sm text-gray-700 dark:text-gray-300">{new Date(l.originalExpiryDate + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
                                         <td className="py-3">
                                             <span className={`px-2 py-1 text-xs font-semibold rounded-full ${l.status === 'expired'
-                                                ? 'bg-red-100 text-red-800 dark:bg-red-900/90 dark:text-red-200'
+                                                ? 'bg-red-100 text-red-800'
                                                 : l.status === 'warning'
-                                                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/90 dark:text-yellow-200'
-                                                    : 'bg-green-100 text-green-800 dark:bg-green-900/90 dark:text-green-200'
+                                                    ? 'bg-yellow-100 text-yellow-800'
+                                                    : 'bg-green-100 text-green-800'
                                                 }`}>
                                                 {l.status === 'expired' ? 'Vencida' : `${l.days} dias`}
                                             </span>
@@ -159,7 +159,7 @@ const Dashboard: React.FC<DashboardProps> = ({ licenses, branches, licenseTypes 
                                                 <span className="text-gray-700 dark:text-gray-300">{lt.name}</span>
                                                 <span className="text-gray-500 dark:text-gray-400">{lt.count} ({percentage}%)</span>
                                             </div>
-                                            <div className="w-full bg-gray-200 dark:bg-gray-400 rounded-full h-2">
+                                            <div className="w-full bg-gray-200/15 dark:bg-gray-400/15 rounded-full h-2">
                                                 <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${percentage}%` }}></div>
                                             </div>
                                         </div>
@@ -178,7 +178,7 @@ const Dashboard: React.FC<DashboardProps> = ({ licenses, branches, licenseTypes 
                                                 <span className="text-gray-700 dark:text-gray-300">{b.name}</span>
                                                 <span className="text-gray-500 dark:text-gray-400">{b.count} ({percentage}%)</span>
                                             </div>
-                                            <div className="w-full bg-gray-200 dark:bg-gray-400 rounded-full h-2">
+                                            <div className="w-full bg-gray-200/15 dark:bg-gray-400/15 rounded-full h-2">
                                                 <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${percentage}%` }}></div>
                                             </div>
                                         </div>
