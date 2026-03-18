@@ -203,8 +203,8 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
   const getSourceLicenseLabel = (license: License): string => {
     const unidade = getBranchNameById(license.unitId);
     const licenca = license.licenseType || '-';
-    const numeroAno = license.numberYear || '-';
-    return `${unidade} - ${licenca} - ${numeroAno}`;
+    const numeroAno = String(license.numberYear ?? '').trim() || 'não informado';
+    return `${unidade} - ${licenca} - N°/Ano: ${numeroAno}`;
   };
 
   const sourceLicenses = useMemo(
@@ -1619,7 +1619,7 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl dark:bg-gray-800">
             <h3 className="mb-4 text-xl font-bold text-gray-800 dark:text-white">
-              {editingLao ? 'Editar LAO' : 'Nova LAO'}
+              {editingLao ? 'Editar' : 'Nova'}
             </h3>
 
             {!editingLao && (
@@ -1685,7 +1685,7 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
             {editingLao && laoForm.sourceLicenseId && (
               <div className="mb-4 rounded border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/60 dark:bg-blue-900/20">
                 <div className="text-sm font-semibold text-slate-900 dark:text-white">
-                  LAO vinculada a licença de origem
+                  Vinculada a licença de origem
                 </div>
                 <div className="mt-1 text-xs text-slate-700 dark:text-gray-200">
                   {linkedSourceLicense
@@ -1706,7 +1706,7 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="flex flex-col">
-                <label className="mb-1 text-sm font-medium">Número da LAO</label>
+                <label className="mb-1 text-sm font-medium">Número</label>
                 <input
                   name="laoNumber"
                   value={laoForm.laoNumber}
@@ -1930,7 +1930,7 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
                 onClick={saveLao}
                 className="rounded bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
               >
-                Salvar LAO
+                Salvar
               </button>
             </div>
           </div>
@@ -1940,11 +1940,11 @@ export const LaoConditionsManagement: React.FC<LaoConditionsManagementProps> = (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-xl rounded-xl bg-white p-6 shadow-xl dark:bg-gray-800">
             <h3 className="mb-4 text-xl font-bold text-gray-800 dark:text-white">
-              {editingCondition ? 'Editar Condicionante' : 'Nova Condicionante'}
+              {editingCondition ? 'Editar' : 'Nova'}
             </h3>
             <div className="space-y-3">
               <div className="flex flex-col">
-                <label className="mb-1 text-sm font-medium">LAO</label>
+                <label className="mb-1 text-sm font-medium">Licença</label>
                 <select
                   name="laoId"
                   value={conditionForm.laoId}
