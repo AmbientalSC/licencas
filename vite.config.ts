@@ -14,9 +14,6 @@ export default defineConfig(({ mode }) => {
           output: {
             manualChunks(id) {
               if (!id.includes('node_modules')) return undefined;
-              if (id.includes('firebase/firestore')) return 'firebase-firestore';
-              if (id.includes('firebase/auth')) return 'firebase-auth';
-              if (id.includes('firebase/app')) return 'firebase-app';
               if (id.includes('firebase')) return 'firebase';
               if (id.includes('react') || id.includes('scheduler')) return 'react-vendor';
               if (id.includes('xlsx')) return 'xlsx';
