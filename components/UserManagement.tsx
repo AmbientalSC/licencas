@@ -31,6 +31,7 @@ const SCREENS = [
   { id: 'deactivatedLicenses', label: 'Licen�as Vencidas' },
   { id: 'licenseTypes', label: 'Tipos de Licen�a' },
   { id: 'branches', label: 'Filiais' },
+  { id: 'credores', label: 'Credores' },
   { id: 'laoConditions', label: 'Condicionantes LAO' },
   { id: 'users', label: 'Usu�rios' },
 ];

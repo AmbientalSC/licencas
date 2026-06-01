@@ -1,29 +1,22 @@
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { db } from './firebase';
-import {
-  collection,
-  getDocs,
-  addDoc,
-  doc,
-  updateDoc,
-  deleteDoc,
-  deleteField,
-  writeBatch,
-  query,
-  where
-} from 'firebase/firestore';
+import React, { useState, lazy, Suspense } from 'react';
 import { auth } from './firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { signOut } from 'firebase/auth';
 import type {
   Unit,
   License,
   LicenseType,
   Branch,
+  Credor,
+  CredorLicense,
   User,
   LaoRecord,
   LaoCondition,
   LaoInspection
 } from './types';
+import { useTheme } from './hooks/useTheme';
+import { useAuth } from './hooks/useAuth';
+import { useFirestoreData } from './hooks/useFirestore';
+import { usePermissions } from './hooks/usePermissions';
 import Login from './components/Login';
 import { LicenseIcon } from './components/icons/LicenseIcon';
 import { ExpiredIcon } from './components/icons/ExpiredIcon';
@@ -31,6 +24,7 @@ import { TypeIcon } from './components/icons/TypeIcon';
 import { BuildingIcon } from './components/icons/BuildingIcon';
 import { DashboardIcon } from './components/icons/DashboardIcon';
 import { UsersIcon } from './components/icons/UsersIcon';
+import { CredoresIcon } from './components/icons/CredoresIcon';
 import logo from './assets/ambiental.svg';
 
 const Dashboard = lazy(() => import('./components/Dashboard'));
@@ -40,6 +34,7 @@ const BranchManagement = lazy(() => import('./components/BranchManagement'));
 const DeactivatedLicenses = lazy(() => import('./components/DeactivatedLicenses'));
 const LaoConditionsManagement = lazy(() => import('./components/LaoConditionsManagement'));
 const UserManagement = lazy(() => import('./components/UserManagement'));
+const CredoresManagement = lazy(() => import('./components/CredoresManagement'));
 
 type View =
   | 'dashboard'
@@ -49,243 +44,77 @@ type View =
   | 'branches'
   | 'deactivatedLicenses'
   | 'laoConditions'
+  | 'credores'
   | 'users';
-
-type ThemeMode = 'light' | 'dark';
-type ThemePreference = ThemeMode | 'system';
-
-const unitsCollectionRef = collection(db, 'units');
-const licensesCollectionRef = collection(db, 'licenses');
-const licenseTypesCollectionRef = collection(db, 'licenseTypes');
-const branchesCollectionRef = collection(db, 'branches');
-const laoCollectionRef = collection(db, 'laos');
-const laoConditionsCollectionRef = collection(db, 'laoConditions');
-const laoInspectionsCollectionRef = collection(db, 'laoInspections');
-
-const toFirestoreData = (value: any): any => {
-  if (Array.isArray(value)) {
-    return value.map(item => toFirestoreData(item));
-  }
-  if (value && typeof value === 'object' && !(value instanceof Date)) {
-    return Object.fromEntries(
-      Object.entries(value)
-        .filter(([, fieldValue]) => fieldValue !== undefined)
-        .map(([key, fieldValue]) => [key, toFirestoreData(fieldValue)]),
-    );
-  }
-  return value;
-};
 
 const App: React.FC = () => {
   const [view, setView] = useState<View>('dashboard');
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [licenses, setLicenses] = useState<License[]>([]);
-  const [licenseTypes, setLicenseTypes] = useState<LicenseType[]>([]);
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [laos, setLaos] = useState<LaoRecord[]>([]);
-  const [laoConditions, setLaoConditions] = useState<LaoCondition[]>([]);
-  const [laoInspections, setLaoInspections] = useState<LaoInspection[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
-  const [userRole, setUserRole] = useState<'admin' | 'colaborador' | null>(null);
-  const [userProfile, setUserProfile] = useState<User | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [themePreference, setThemePreference] = useState<ThemePreference>(() => {
-    if (typeof window === 'undefined') return 'system';
-    const savedPreference = localStorage.getItem('themePreference');
-    if (savedPreference === 'light' || savedPreference === 'dark' || savedPreference === 'system') {
-      return savedPreference;
-    }
-    return 'system';
-  });
-  const [theme, setTheme] = useState<ThemeMode>('light');
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const resolveTheme = (preference: ThemePreference, isDark: boolean): ThemeMode => {
-      if (preference === 'system') {
-        return isDark ? 'dark' : 'light';
-      }
-      return preference;
-    };
+  const { theme, toggleThemePreference } = useTheme();
+  const { user, userRole, userProfile, authLoading } = useAuth();
+  const {
+    units,
+    licenses,
+    licenseTypes,
+    branches,
+    credores,
+    credorLicenses,
+    laos,
+    laoConditions,
+    laoInspections,
+    loading,
+    addUnit,
+    updateUnit,
+    deleteUnit,
+    addLicense,
+    updateLicense,
+    deleteLicense,
+    addLicenseType,
+    updateLicenseType,
+    deleteLicenseType,
+    addBranch,
+    updateBranch,
+    deleteBranch,
+    addCredor,
+    updateCredor,
+    deleteCredor,
+    addCredorLicense,
+    updateCredorLicense,
+    deleteCredorLicense,
+    addLao,
+    updateLao,
+    deleteLao,
+    addLaoCondition,
+    updateLaoCondition,
+    deleteLaoCondition,
+    addLaoInspection,
+  } = useFirestoreData();
 
-    setTheme(resolveTheme(themePreference, mediaQuery.matches));
+  const {
+    hasScreenAccess,
+    licenses: visibleLicenses,
+    branches: visibleBranches,
+    licenseTypes: visibleLicenseTypes,
+    credores: visibleCredores,
+    credorLicenses: visibleCredorLicenses,
+    laos: visibleLaos,
+    laoConditions: visibleLaoConditions,
+    laoInspections: visibleLaoInspections,
+  } = usePermissions(
+    userRole,
+    userProfile,
+    licenses,
+    branches,
+    licenseTypes,
+    credores,
+    credorLicenses,
+    laos,
+    laoConditions,
+    laoInspections,
+  );
 
-    const handler = (event: MediaQueryListEvent) => {
-      if (themePreference === 'system') {
-        setTheme(event.matches ? 'dark' : 'light');
-      }
-    };
-
-    if (typeof mediaQuery.addEventListener === 'function') {
-      mediaQuery.addEventListener('change', handler);
-      return () => mediaQuery.removeEventListener('change', handler);
-    }
-
-    mediaQuery.addListener(handler);
-    return () => mediaQuery.removeListener(handler);
-  }, [themePreference]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const root = document.documentElement;
-    root.classList.remove('light', 'dark');
-    root.classList.add(theme);
-    root.style.colorScheme = theme;
-    localStorage.setItem('themePreference', themePreference);
-    localStorage.setItem('theme', theme);
-  }, [theme, themePreference]);
-
-  const toggleThemePreference = () => {
-    setThemePreference(prev => (prev === 'dark' ? 'light' : 'dark'));
-  };
-
-  const fetchUnits = useCallback(async () => {
-    const data = await getDocs(unitsCollectionRef);
-    const unitsData = data.docs.map(d => ({ ...d.data(), id: d.id } as Unit));
-    setUnits(unitsData);
-  }, []);
-
-  const fetchLicenses = useCallback(async () => {
-    const data = await getDocs(licensesCollectionRef);
-    const licensesData = data.docs.map(d => {
-      const licenseData = d.data();
-      let attachments = licenseData.attachments || [];
-      
-      // Migração: Se tem fileUrl mas não tem attachments, converter para novo formato
-      if ((licenseData.fileUrl || licenseData.fileName) && attachments.length === 0) {
-        if (licenseData.fileUrl) {
-          attachments = [{
-            id: Date.now().toString(),
-            fileName: licenseData.fileName || 'Arquivo',
-            fileUrl: licenseData.fileUrl,
-            uploadedAt: new Date().toISOString(),
-            // Não incluir storagePath para dados antigos
-          }];
-        }
-      }
-      
-      return {
-        ...licenseData,
-        id: d.id,
-        attachments: attachments
-      } as License;
-    });
-    setLicenses(licensesData);
-  }, []);
-
-  const fetchLicenseTypes = useCallback(async () => {
-    const data = await getDocs(licenseTypesCollectionRef);
-    const licenseTypesData = data.docs.map(d => ({ ...d.data(), id: d.id } as LicenseType));
-    setLicenseTypes(licenseTypesData);
-  }, []);
-
-  const fetchBranches = useCallback(async () => {
-    const data = await getDocs(branchesCollectionRef);
-    const branchesData = data.docs.map(d => ({ ...d.data(), id: d.id } as Branch));
-    setBranches(branchesData);
-  }, []);
-
-  const fetchLaos = useCallback(async () => {
-    const data = await getDocs(laoCollectionRef);
-    const laosData = data.docs.map(d => ({ ...d.data(), id: d.id } as LaoRecord));
-    setLaos(laosData);
-  }, []);
-
-  const fetchLaoConditions = useCallback(async () => {
-    const data = await getDocs(laoConditionsCollectionRef);
-    const laoConditionsData = data.docs.map(
-      d => ({ ...d.data(), id: d.id } as LaoCondition),
-    );
-    setLaoConditions(laoConditionsData);
-  }, []);
-
-  const fetchLaoInspections = useCallback(async () => {
-    const data = await getDocs(laoInspectionsCollectionRef);
-    const laoInspectionsData = data.docs.map(
-      d => ({ ...d.data(), id: d.id } as LaoInspection),
-    );
-    setLaoInspections(laoInspectionsData);
-  }, []);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        await Promise.all([
-          fetchUnits(),
-          fetchLicenses(),
-          fetchLicenseTypes(),
-          fetchBranches(),
-          fetchLaos(),
-          fetchLaoConditions(),
-          fetchLaoInspections(),
-        ]);
-      } catch (error) {
-        console.error("Failed to fetch data from Firebase:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [
-    fetchUnits,
-    fetchLicenses,
-    fetchLicenseTypes,
-    fetchBranches,
-    fetchLaos,
-    fetchLaoConditions,
-    fetchLaoInspections,
-  ]);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
-      setAuthLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      if (user) {
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('uid', '==', user.uid));
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-          const docData = querySnapshot.docs[0].data();
-          setUserProfile({ id: querySnapshot.docs[0].id, ...(docData as any) } as User);
-          setUserRole(docData.role);
-        } else {
-          const allUsersSnapshot = await getDocs(usersRef);
-          if (allUsersSnapshot.empty) {
-            const newUserDoc = await addDoc(usersRef, {
-              uid: user.uid,
-              name: user.displayName || user.email?.split('@')[0] || 'Admin',
-              email: user.email,
-              role: 'admin',
-              active: true,
-              allowedScreens: ['dashboard', 'licenses', 'sgaLicenses', 'deactivatedLicenses', 'licenseTypes', 'branches', 'laoConditions', 'users'],
-              visibleBranchIds: [],
-              visibleLicenseTypes: [],
-              createdAt: new Date().toISOString()
-            });
-            setUserRole('admin');
-            setUserProfile({ id: newUserDoc.id, uid: user.uid, name: user.displayName || user.email?.split('@')[0] || 'Admin', email: user.email, role: 'admin', active: true, allowedScreens: ['dashboard', 'licenses', 'sgaLicenses', 'deactivatedLicenses', 'licenseTypes', 'branches', 'laoConditions', 'users'] });
-          } else {
-            setUserRole('colaborador');
-            setUserProfile({ id: '', uid: user.uid, name: user.displayName || '', email: user.email || '', role: 'colaborador', active: true, allowedScreens: ['dashboard'] });
-          }
-        }
-      } else {
-        setUserRole(null);
-      }
-    };
-    fetchUserRole();
-  }, [user]);
+  void units; void addUnit; void updateUnit; void deleteUnit;
 
   if (authLoading) {
     return (
@@ -299,223 +128,19 @@ const App: React.FC = () => {
   }
 
   if (!user) {
-    return <Login onLogin={() => setUser(auth.currentUser)} />;
+    return <Login onLogin={() => { /* auth state reflects change via onAuthStateChanged */ }} />;
   }
 
-  const addUnit = async (unit: Omit<Unit, 'id'>) => {
-    await addDoc(unitsCollectionRef, unit);
-    await fetchUnits();
-  };
-
-  const updateUnit = async (updatedUnit: Unit) => {
-    const { id, ...unitData } = updatedUnit;
-    const unitDocRef = doc(db, 'units', id);
-    await updateDoc(unitDocRef, { ...unitData });
-    await fetchUnits();
-  };
-
-  const deleteUnit = async (id: string) => {
-    const batch = writeBatch(db);
-    const unitDocRef = doc(db, 'units', id);
-    batch.delete(unitDocRef);
-
-    const q = query(licensesCollectionRef, where("unitId", "==", id));
-    const licensesSnapshot = await getDocs(q);
-    licensesSnapshot.forEach((licenseDoc) => {
-      batch.delete(licenseDoc.ref);
-    });
-
-    await batch.commit();
-    await Promise.all([fetchUnits(), fetchLicenses()]);
-  };
-
-  const addLicense = async (license: Omit<License, 'id'>) => {
-    const licenseWithAttachments = {
-      ...license,
-      attachments: license.attachments || []
-    };
-    await addDoc(licensesCollectionRef, licenseWithAttachments);
-    await fetchLicenses();
-  };
-
-  const updateLicense = async (updatedLicense: License) => {
-    const { id, ...licenseData } = updatedLicense;
-    const licenseWithAttachments = {
-      ...licenseData,
-      attachments: licenseData.attachments || []
-    };
-    const licenseDocRef = doc(db, 'licenses', id);
-    await updateDoc(licenseDocRef, licenseWithAttachments);
-    await fetchLicenses();
-  };
-
-  const deleteLicense = async (id: string) => {
-    const licenseDocRef = doc(db, 'licenses', id);
-    await deleteDoc(licenseDocRef);
-    await fetchLicenses();
-  };
-
-  const addLicenseType = async (licenseType: Omit<LicenseType, 'id'>) => {
-    const data = {
-      ...licenseType,
-      renewalProtocolDays: Number(licenseType.renewalProtocolDays) || 0,
-      processStartDays: Number(licenseType.processStartDays) || 0,
-    };
-    await addDoc(licenseTypesCollectionRef, data);
-    await fetchLicenseTypes();
-  };
-
-  const updateLicenseType = async (updatedLicenseType: LicenseType) => {
-    const { id, ...licenseTypeData } = updatedLicenseType;
-    const data = {
-      ...licenseTypeData,
-      renewalProtocolDays: Number(licenseTypeData.renewalProtocolDays) || 0,
-      processStartDays: Number(licenseTypeData.processStartDays) || 0,
-    };
-    const licenseTypeDocRef = doc(db, 'licenseTypes', id);
-    await updateDoc(licenseTypeDocRef, data);
-    await fetchLicenseTypes();
-  };
-
-  const deleteLicenseType = async (id: string) => {
-    const licenseTypeDocRef = doc(db, 'licenseTypes', id);
-    await deleteDoc(licenseTypeDocRef);
-    await fetchLicenseTypes();
-  };
-
-  const addBranch = async (branch: Omit<Branch, 'id'>) => {
-    const docRef = await addDoc(branchesCollectionRef, branch);
-    await fetchBranches();
-    return docRef.id;
-  };
-
-  const updateBranch = async (updatedBranch: Branch) => {
-    const { id, ...branchData } = updatedBranch;
-    const branchDocRef = doc(db, 'branches', id);
-    await updateDoc(branchDocRef, { ...branchData });
-    await fetchBranches();
-  };
-
-  const deleteBranch = async (id: string) => {
-    const branchDocRef = doc(db, 'branches', id);
-    await deleteDoc(branchDocRef);
-    await fetchBranches();
-  };
-
-  const addLao = async (lao: Omit<LaoRecord, 'id'>) => {
-    const docRef = await addDoc(laoCollectionRef, toFirestoreData(lao));
-    await fetchLaos();
-    return docRef.id;
-  };
-
-  const updateLao = async (updatedLao: LaoRecord) => {
-    const { id, ...laoData } = updatedLao;
-    const laoDocRef = doc(db, 'laos', id);
-    await updateDoc(laoDocRef, toFirestoreData({ ...laoData }));
-    await fetchLaos();
-  };
-
-  const deleteLao = async (id: string) => {
-    const batch = writeBatch(db);
-    const laoDocRef = doc(db, 'laos', id);
-    batch.delete(laoDocRef);
-
-    const conditionsQuery = query(laoConditionsCollectionRef, where('laoId', '==', id));
-    const conditionsSnapshot = await getDocs(conditionsQuery);
-    conditionsSnapshot.forEach(conditionDoc => {
-      batch.delete(conditionDoc.ref);
-    });
-
-    const inspectionsQuery = query(laoInspectionsCollectionRef, where('laoId', '==', id));
-    const inspectionsSnapshot = await getDocs(inspectionsQuery);
-    inspectionsSnapshot.forEach(inspectionDoc => {
-      batch.delete(inspectionDoc.ref);
-    });
-
-    await batch.commit();
-    await Promise.all([fetchLaos(), fetchLaoConditions(), fetchLaoInspections()]);
-  };
-
-  const addLaoCondition = async (condition: Omit<LaoCondition, 'id'>) => {
-    const payload: any = toFirestoreData(condition);
-    if (condition.frequencyPreset !== 'custom') {
-      delete payload.customMonthsInterval;
-    } else {
-      payload.customMonthsInterval = Number(condition.customMonthsInterval || 0);
-    }
-    const docRef = await addDoc(laoConditionsCollectionRef, payload);
-    await fetchLaoConditions();
-    return docRef.id;
-  };
-
-  const updateLaoCondition = async (updatedCondition: LaoCondition) => {
-    const { id, ...conditionData } = updatedCondition;
-    const conditionDocRef = doc(db, 'laoConditions', id);
-    const payload: any = toFirestoreData({ ...conditionData });
-    if (conditionData.frequencyPreset !== 'custom') {
-      payload.customMonthsInterval = deleteField();
-    } else {
-      payload.customMonthsInterval = Number(conditionData.customMonthsInterval || 0);
-    }
-    await updateDoc(conditionDocRef, payload);
-    await fetchLaoConditions();
-  };
-
-  const deleteLaoCondition = async (id: string) => {
-    const batch = writeBatch(db);
-    const conditionDocRef = doc(db, 'laoConditions', id);
-    batch.delete(conditionDocRef);
-
-    const inspectionsQuery = query(laoInspectionsCollectionRef, where('conditionId', '==', id));
-    const inspectionsSnapshot = await getDocs(inspectionsQuery);
-    inspectionsSnapshot.forEach(inspectionDoc => {
-      batch.delete(inspectionDoc.ref);
-    });
-
-    await batch.commit();
-    await Promise.all([fetchLaoConditions(), fetchLaoInspections()]);
-  };
-
-  const updateConditionLastInspection = async (conditionId: string) => {
-    const inspectionsQuery = query(
-      laoInspectionsCollectionRef,
-      where('conditionId', '==', conditionId),
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-xl font-semibold text-gray-700">Carregando dados...</p>
+        </div>
+      </div>
     );
-    const inspectionsSnapshot = await getDocs(inspectionsQuery);
-    let lastInspectionDate: string | null = null;
-    inspectionsSnapshot.forEach(item => {
-      const inspectionDate = item.data().inspectionDate as string | undefined;
-      if (!inspectionDate) return;
-      if (!lastInspectionDate || inspectionDate > lastInspectionDate) {
-        lastInspectionDate = inspectionDate;
-      }
-    });
-
-    const conditionDocRef = doc(db, 'laoConditions', conditionId);
-    await updateDoc(conditionDocRef, {
-      lastInspectionDate,
-      updatedAt: new Date().toISOString(),
-    });
-  };
-
-  const addLaoInspection = async (inspection: Omit<LaoInspection, 'id'>) => {
-    const existingQuery = query(
-      laoInspectionsCollectionRef,
-      where('conditionId', '==', inspection.conditionId),
-    );
-    const existingSnapshot = await getDocs(existingQuery);
-    const hasDuplicate = existingSnapshot.docs.some(
-      item => item.data().inspectionDate === inspection.inspectionDate,
-    );
-    if (hasDuplicate) {
-      return null;
-    }
-
-    const docRef = await addDoc(laoInspectionsCollectionRef, toFirestoreData(inspection));
-    await updateConditionLastInspection(inspection.conditionId);
-    await Promise.all([fetchLaoInspections(), fetchLaoConditions()]);
-    return docRef.id;
-  };
+  }
 
   const SidebarItem = ({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) => {
     return (
@@ -535,47 +160,8 @@ const App: React.FC = () => {
     );
   };
 
-  const hasScreenAccess = (screen: View) => {
-    if (userRole === 'admin') return true;
-    return !!userProfile?.allowedScreens?.includes(screen);
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-xl font-semibold text-gray-700">Carregando dados...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const visibleLicenses = (userRole === 'admin' || !userProfile) ? licenses : licenses.filter(l => {
-    const byBranch = !userProfile?.visibleBranchIds || userProfile.visibleBranchIds.length === 0 || userProfile.visibleBranchIds.includes(l.unitId);
-    const byType = !userProfile?.visibleLicenseTypes || userProfile.visibleLicenseTypes.length === 0 || userProfile.visibleLicenseTypes.includes(l.licenseType);
-    return byBranch && byType;
-  });
-
-  const visibleBranches = (userRole === 'admin' || !userProfile) ? branches : branches.filter(b => !userProfile?.visibleBranchIds || userProfile.visibleBranchIds.length === 0 || userProfile.visibleBranchIds.includes(b.id));
-  const visibleLicenseTypes = (userRole === 'admin' || !userProfile) ? licenseTypes : licenseTypes.filter(lt => !userProfile?.visibleLicenseTypes || userProfile.visibleLicenseTypes.length === 0 || userProfile.visibleLicenseTypes.includes(lt.name));
-  const visibleLaos = (userRole === 'admin' || !userProfile)
-    ? laos
-    : laos.filter(lao => {
-      if (!lao.branchId) return false;
-      if (!userProfile?.visibleBranchIds || userProfile.visibleBranchIds.length === 0) return true;
-      return userProfile.visibleBranchIds.includes(lao.branchId);
-    });
-  const visibleLaoIds = new Set(visibleLaos.map(lao => lao.id));
-  const visibleLaoConditions = laoConditions.filter(condition => visibleLaoIds.has(condition.laoId));
-  const visibleConditionIds = new Set(visibleLaoConditions.map(condition => condition.id));
-  const visibleLaoInspections = laoInspections.filter(inspection => visibleConditionIds.has(inspection.conditionId));
-
-  void units; void addUnit; void updateUnit; void deleteUnit;
-
   return (
     <div className={`flex min-h-screen bg-gray-100 text-gray-800 ${theme === 'dark' ? 'dark bg-gray-900 text-gray-100' : ''}`}>
-      {/* Botão toggle em posição fixa - left: 240px coloca a linha no centro do botão */}
       <button
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
         className="fixed top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-slate-600 hover:bg-slate-500 transition-all duration-300 text-white shadow-lg z-30"
@@ -587,19 +173,15 @@ const App: React.FC = () => {
         </svg>
       </button>
 
-      {/* Sidebar */}
       <aside
         className={`${isSidebarOpen ? 'w-64' : 'w-0'} flex flex-col sticky top-0 h-screen shrink-0 z-20 transition-all duration-300 overflow-hidden`}
         style={{ backgroundColor: '#1e293b' }}
       >
-        {/* Conteúdo da sidebar */}
         <div className={`${isSidebarOpen ? 'opacity-100' : 'opacity-0'} flex flex-col h-full transition-opacity duration-200`}>
-          {/* Logo Area */}
           <div className="h-32 flex items-center justify-center shrink-0 p-4 border-b border-slate-700/50">
             <img src={logo} alt="Logo Ambiental" className="max-h-full max-w-full object-contain" />
           </div>
 
-          {/* Navegação */}
           <nav className="flex-1 py-4 overflow-hidden">
             <ul className="px-3 space-y-1">
               {hasScreenAccess('dashboard') && (
@@ -650,6 +232,14 @@ const App: React.FC = () => {
                   onClick={() => setView('branches')}
                 />
               )}
+              {hasScreenAccess('credores') && (
+                <SidebarItem
+                  icon={<CredoresIcon />}
+                  label="Credores"
+                  active={view === 'credores'}
+                  onClick={() => setView('credores')}
+                />
+              )}
               {hasScreenAccess('laoConditions') && (
                 <SidebarItem
                   icon={<TypeIcon />}
@@ -669,7 +259,6 @@ const App: React.FC = () => {
             </ul>
           </nav>
 
-          {/* Perfil do usuário no rodapé */}
           <div className="p-4 shrink-0">
             <div
               className="flex items-center p-2 rounded-lg cursor-pointer transition-colors hover:bg-slate-700"
@@ -692,23 +281,18 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      {/* Main Content Wrapper */}
       <div className="flex-1 flex flex-col min-h-screen min-w-0">
-        {/* Header */}
         <header
           className="h-14 flex items-center justify-between px-6 sticky top-0 z-10"
           style={{ backgroundColor: '#1e293b' }}
         >
-          {/* Esquerda - Espaço reservado */}
           <div className="flex items-center gap-4 min-w-[200px]">
           </div>
 
-          {/* Centro - Título */}
           <h1 className="text-lg font-semibold text-white">
             Gestão de Licenças Ambientais
           </h1>
 
-          {/* Direita - Ícones de ação */}
           <div className="flex items-center gap-2 min-w-[200px] justify-end">
             <button
               onClick={toggleThemePreference}
@@ -736,7 +320,6 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        {/* Main Content Area */}
         <main className="flex-1 p-6 lg:p-8 overflow-x-hidden">
           <div className="w-full">
             <Suspense
@@ -770,6 +353,18 @@ const App: React.FC = () => {
                 />
               )}
               {view === 'users' && <UserManagement branches={branches} licenseTypes={licenseTypes} />}
+              {view === 'credores' && (
+                <CredoresManagement
+                  credores={visibleCredores}
+                  credorLicenses={visibleCredorLicenses}
+                  onAddCredor={addCredor}
+                  onUpdateCredor={updateCredor}
+                  onDeleteCredor={deleteCredor}
+                  onAddCredorLicense={addCredorLicense}
+                  onUpdateCredorLicense={updateCredorLicense}
+                  onDeleteCredorLicense={deleteCredorLicense}
+                />
+              )}
             </Suspense>
           </div>
         </main>

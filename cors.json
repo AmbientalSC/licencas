@@ -1,5 +1,6 @@
 [{
     "origin": ["https://ambientalsc.github.io", "http://localhost:5173"],
-    "method": ["GET"],
+    "method": ["GET", "PUT", "POST", "DELETE"],
+    "responseHeader": ["Content-Type", "Content-Disposition", "Authorization"],
     "maxAgeSeconds": 3600
 }]

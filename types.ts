@@ -126,6 +126,27 @@ export interface LaoCondition {
   updatedAt: string;
 }
 
+export interface Credor {
+  id: string;
+  name: string;
+  cnpj: string;
+  address: string;
+  city: string;
+  state: string;
+  contact: string;
+  status: Status;
+  attachments?: Attachment[];
+}
+
+export interface CredorLicense {
+  id: string;
+  credorId: string;
+  numero: string;
+  tipo: string;
+  dataVencimento: string;
+  observacao: string;
+}
+
 export interface LaoInspection {
   id: string;
   laoId: string;
