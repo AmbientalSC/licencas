@@ -437,7 +437,8 @@ const CredoresManagement: React.FC<CredoresManagementProps> = ({
               <button
                 type="button"
                 onClick={addPendingLicense}
-                className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2 mb-4"
+                disabled={!licenseForm.tipo || !licenseForm.numero || !licenseForm.dataVencimento}
+                className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2 mb-4 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <PlusIcon /> Adicionar Licença
               </button>
