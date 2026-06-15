@@ -129,32 +129,33 @@ const CredoresManagement: React.FC<CredoresManagementProps> = ({
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setUploading(true);
-      try {
-        const credorId = editingCredor ? editingCredor.id : 'novo';
-        const storagePath = `credores/${credorId}/${Date.now()}_${file.name}`;
-        const storageRef = ref(storage, storagePath);
-        const snapshot = await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(snapshot.ref);
-
-        const newAttachment: Attachment = {
-          id: Date.now().toString(),
-          fileName: file.name,
-          fileUrl: downloadURL,
-          uploadedAt: new Date().toISOString(),
-          storagePath,
-        };
-
-        setFormAttachments(prev => [...prev, newAttachment]);
-      } catch (error) {
-        console.error('Erro ao fazer upload do arquivo:', error);
-        alert('Erro ao fazer upload do arquivo.');
-      } finally {
-        setUploading(false);
-        e.target.value = '';
-      }
+    if (!e.target.files || e.target.files.length === 0) return;
+    const files = Array.from(e.target.files);
+    setUploading(true);
+    try {
+      const credorId = editingCredor ? editingCredor.id : 'novo';
+      const uploaded = await Promise.all(
+        files.map(async (file) => {
+          const storagePath = `credores/${credorId}/${Date.now()}_${file.name}`;
+          const storageRef = ref(storage, storagePath);
+          const snapshot = await uploadBytes(storageRef, file);
+          const downloadURL = await getDownloadURL(snapshot.ref);
+          return {
+            id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+            fileName: file.name,
+            fileUrl: downloadURL,
+            uploadedAt: new Date().toISOString(),
+            storagePath,
+          } as Attachment;
+        })
+      );
+      setFormAttachments(prev => [...prev, ...uploaded]);
+    } catch (error) {
+      console.error('Erro ao fazer upload dos arquivos:', error);
+      alert('Erro ao fazer upload de um ou mais arquivos.');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
     }
   };
 
@@ -352,14 +353,15 @@ const CredoresManagement: React.FC<CredoresManagementProps> = ({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {uploading ? 'Enviando...' : 'Clique para adicionar anexo'}
+                      {uploading ? 'Enviando...' : 'Clique para adicionar anexos'}
                     </span>
                     <span className="text-xs text-gray-500 dark:text-gray-400">
-                      ou arraste um arquivo aqui
+                      Selecione um ou mais arquivos
                     </span>
                   </div>
                   <input
                     type="file"
+                    multiple
                     onChange={handleFileUpload}
                     disabled={uploading}
                     className="hidden"
