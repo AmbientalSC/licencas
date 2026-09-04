@@ -74,6 +74,7 @@ export interface User {
   allowedScreens?: string[]; // e.g., ['dashboard','licenses']
   visibleBranchIds?: string[]; // Branch IDs user can access
   visibleLicenseTypes?: string[]; // License type names user can access
+  mustChangePassword?: boolean; // Força troca de senha no próximo login
 }
 
 export type LaoCategory = 'Ambiental' | 'SGA';

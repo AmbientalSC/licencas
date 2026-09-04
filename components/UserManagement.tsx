@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { db, firebaseConfig } from '../firebase';
+import { db, firebaseConfig, functions } from '../firebase';
 import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { httpsCallable } from 'firebase/functions';
 import { PencilIcon } from './icons/PencilIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { PlusIcon } from './icons/PlusIcon';
+import { KeyIcon } from './icons/KeyIcon';
 
 interface User {
   id: string;
@@ -94,6 +96,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ branches = [], licenseT
     });
   };
   const [success, setSuccess] = useState('');
+
+  type ResetStatus = { status: 'idle' | 'loading' | 'success' | 'error'; message?: string };
+  const [resetState, setResetState] = useState<Record<string, ResetStatus>>({});
 
   const usersCollectionRef = collection(db, 'users');
 
@@ -246,6 +251,33 @@ const UserManagement: React.FC<UserManagementProps> = ({ branches = [], licenseT
     }
   };
 
+  const mapResetError = (err: any): string => {
+    const code = String(err?.code || '');
+    if (code.includes('permission-denied')) return 'Apenas administradores ativos podem gerar senha.';
+    if (code.includes('not-found')) return 'Usuário não encontrado.';
+    if (code.includes('failed-precondition')) return 'Dados do usuário incompletos (uid/e-mail).';
+    if (code.includes('unauthenticated')) return 'Sessão expirada. Faça login novamente.';
+    return 'Erro ao gerar nova senha. Tente novamente.';
+  };
+
+  const handleResetPassword = async (targetUser: User) => {
+    if (!window.confirm(
+      `Gerar uma nova senha temporária para ${targetUser.name}? A senha será enviada por e-mail para ${targetUser.email} e ele(a) precisará trocá-la no próximo login.`
+    )) return;
+
+    setResetState(prev => ({ ...prev, [targetUser.id]: { status: 'loading' } }));
+    try {
+      const resetFn = httpsCallable(functions, 'adminResetUserPassword');
+      await resetFn({ targetUserId: targetUser.id });
+      setResetState(prev => ({ ...prev, [targetUser.id]: { status: 'success' } }));
+      setTimeout(() => {
+        setResetState(prev => ({ ...prev, [targetUser.id]: { status: 'idle' } }));
+      }, 4000);
+    } catch (err: any) {
+      setResetState(prev => ({ ...prev, [targetUser.id]: { status: 'error', message: mapResetError(err) } }));
+    }
+  };
+
   const toggleActive = async (user: User) => {
     try {
       const userDoc = doc(db, 'users', user.id);
@@ -320,6 +352,21 @@ const UserManagement: React.FC<UserManagementProps> = ({ branches = [], licenseT
                       <button onClick={() => handleEdit(user)} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3">
                         <PencilIcon className="h-5 w-5" />
                       </button>
+                      <button
+                        onClick={() => handleResetPassword(user)}
+                        disabled={resetState[user.id]?.status === 'loading'}
+                        className="text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 mr-3 disabled:opacity-50"
+                        title="Gerar nova senha"
+                        aria-label="Gerar nova senha"
+                      >
+                        <KeyIcon className="h-5 w-5" />
+                      </button>
+                      {resetState[user.id]?.status === 'success' && (
+                        <span className="text-green-600 text-xs mr-2">Enviado!</span>
+                      )}
+                      {resetState[user.id]?.status === 'error' && (
+                        <span className="text-red-600 text-xs mr-2" title={resetState[user.id]?.message}>Erro</span>
+                      )}
                       <button onClick={() => handleDelete(user.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">
                         <TrashIcon className="h-5 w-5" />
                       </button>

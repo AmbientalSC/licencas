@@ -18,6 +18,7 @@ import { useAuth } from './hooks/useAuth';
 import { useFirestoreData } from './hooks/useFirestore';
 import { usePermissions } from './hooks/usePermissions';
 import Login from './components/Login';
+import ForceChangePassword from './components/ForceChangePassword';
 import { LicenseIcon } from './components/icons/LicenseIcon';
 import { ExpiredIcon } from './components/icons/ExpiredIcon';
 import { TypeIcon } from './components/icons/TypeIcon';
@@ -52,7 +53,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const { theme, toggleThemePreference } = useTheme();
-  const { user, userRole, userProfile, authLoading } = useAuth();
+  const { user, userRole, userProfile, authLoading, refreshUserProfile } = useAuth();
   const {
     units,
     licenses,
@@ -129,6 +130,10 @@ const App: React.FC = () => {
 
   if (!user) {
     return <Login onLogin={() => { /* auth state reflects change via onAuthStateChanged */ }} />;
+  }
+
+  if (userProfile?.mustChangePassword) {
+    return <ForceChangePassword userProfile={userProfile} onDone={refreshUserProfile} />;
   }
 
   if (loading) {

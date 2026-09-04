@@ -20,52 +20,57 @@ export function useAuth() {
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      if (user) {
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('uid', '==', user.uid));
-        const querySnapshot = await getDocs(q);
+  const fetchUserRole = async (firebaseUser: any) => {
+    if (firebaseUser) {
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('uid', '==', firebaseUser.uid));
+      const querySnapshot = await getDocs(q);
 
-        if (!querySnapshot.empty) {
-          const docData = querySnapshot.docs[0].data();
-          if (docData.active === false) {
-            setUserRole(null);
-            setUserProfile(null);
-            setAuthLoading(false);
-            await signOut(auth);
-            return;
-          }
-          setUserProfile({ id: querySnapshot.docs[0].id, ...(docData as any) } as User);
-          setUserRole(docData.role);
-        } else {
-          const allUsersSnapshot = await getDocs(usersRef);
-          if (allUsersSnapshot.empty) {
-            const newUserDoc = await addDoc(usersRef, {
-              uid: user.uid,
-              name: user.displayName || user.email?.split('@')[0] || 'Admin',
-              email: user.email,
-              role: 'admin',
-              active: true,
-              allowedScreens: ['dashboard', 'licenses', 'sgaLicenses', 'deactivatedLicenses', 'licenseTypes', 'branches', 'laoConditions', 'users'],
-              visibleBranchIds: [],
-              visibleLicenseTypes: [],
-              createdAt: new Date().toISOString()
-            });
-            setUserRole('admin');
-            setUserProfile({ id: newUserDoc.id, uid: user.uid, name: user.displayName || user.email?.split('@')[0] || 'Admin', email: user.email, role: 'admin', active: true, allowedScreens: ['dashboard', 'licenses', 'sgaLicenses', 'deactivatedLicenses', 'licenseTypes', 'branches', 'laoConditions', 'users'] });
-          } else {
-            setUserRole('colaborador');
-            setUserProfile({ id: '', uid: user.uid, name: user.displayName || '', email: user.email || '', role: 'colaborador', active: true, allowedScreens: ['dashboard'] });
-          }
+      if (!querySnapshot.empty) {
+        const docData = querySnapshot.docs[0].data();
+        if (docData.active === false) {
+          setUserRole(null);
+          setUserProfile(null);
+          setAuthLoading(false);
+          await signOut(auth);
+          return;
         }
-        setAuthLoading(false);
+        setUserProfile({ id: querySnapshot.docs[0].id, ...(docData as any) } as User);
+        setUserRole(docData.role);
       } else {
-        setUserRole(null);
+        const allUsersSnapshot = await getDocs(usersRef);
+        if (allUsersSnapshot.empty) {
+          const newUserDoc = await addDoc(usersRef, {
+            uid: firebaseUser.uid,
+            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Admin',
+            email: firebaseUser.email,
+            role: 'admin',
+            active: true,
+            allowedScreens: ['dashboard', 'licenses', 'sgaLicenses', 'deactivatedLicenses', 'licenseTypes', 'branches', 'laoConditions', 'users'],
+            visibleBranchIds: [],
+            visibleLicenseTypes: [],
+            createdAt: new Date().toISOString()
+          });
+          setUserRole('admin');
+          setUserProfile({ id: newUserDoc.id, uid: firebaseUser.uid, name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Admin', email: firebaseUser.email, role: 'admin', active: true, allowedScreens: ['dashboard', 'licenses', 'sgaLicenses', 'deactivatedLicenses', 'licenseTypes', 'branches', 'laoConditions', 'users'] });
+        } else {
+          setUserRole('colaborador');
+          setUserProfile({ id: '', uid: firebaseUser.uid, name: firebaseUser.displayName || '', email: firebaseUser.email || '', role: 'colaborador', active: true, allowedScreens: ['dashboard'] });
+        }
       }
-    };
-    fetchUserRole();
+      setAuthLoading(false);
+    } else {
+      setUserRole(null);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserRole(user);
   }, [user]);
 
-  return { user, userRole, userProfile, authLoading };
+  const refreshUserProfile = async () => {
+    if (user) await fetchUserRole(user);
+  };
+
+  return { user, userRole, userProfile, authLoading, refreshUserProfile };
 }
