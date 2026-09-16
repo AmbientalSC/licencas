@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { User, License, Branch, LicenseType, Credor, CredorLicense, LaoRecord, LaoCondition, LaoInspection } from '../types';
+import type { User, License, Branch, LicenseType, Credor, CredorLicense, CredorEvaluation, LaoRecord, LaoCondition, LaoInspection } from '../types';
 
 type View =
   | 'dashboard'
@@ -20,6 +20,7 @@ export function usePermissions(
   licenseTypes: LicenseType[],
   credores: Credor[],
   credorLicenses: CredorLicense[],
+  credorEvaluations: CredorEvaluation[],
   laos: LaoRecord[],
   laoConditions: LaoCondition[],
   laoInspections: LaoInspection[],
@@ -56,11 +57,12 @@ export function usePermissions(
       licenseTypes: visibleLicenseTypes,
       credores,
       credorLicenses,
+      credorEvaluations,
       laos: visibleLaos,
       laoConditions: visibleLaoConditions,
       laoInspections: visibleLaoInspections,
     };
-  }, [userRole, userProfile, licenses, branches, licenseTypes, credores, credorLicenses, laos, laoConditions, laoInspections]);
+  }, [userRole, userProfile, licenses, branches, licenseTypes, credores, credorLicenses, credorEvaluations, laos, laoConditions, laoInspections]);
 
   return { hasScreenAccess, ...visible };
 }

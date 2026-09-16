@@ -137,6 +137,7 @@ export interface Credor {
   contact: string;
   status: Status;
   attachments?: Attachment[];
+  serviceTypes?: string[];
 }
 
 export interface CredorLicense {
@@ -146,6 +147,14 @@ export interface CredorLicense {
   tipo: string;
   dataVencimento: string;
   observacao: string;
+}
+
+export interface CredorEvaluation {
+  id: string;
+  credorId: string;
+  data: string;
+  nota: number;
+  comentario: string;
 }
 
 export interface LaoInspection {

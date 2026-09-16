@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Credor, CredorLicense, Attachment, Status } from '../types';
+import type { Credor, CredorLicense, CredorEvaluation, Attachment, Status } from '../types';
 import { storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Modal } from './Modal';
@@ -12,11 +12,14 @@ interface CredorEditModalProps {
   onClose: () => void;
   credor: Credor | null;
   credorLicenses: CredorLicense[];
+  credorEvaluations: CredorEvaluation[];
   onAddCredor: (credor: Omit<Credor, 'id'>) => Promise<string>;
   onUpdateCredor: (credor: Credor) => void;
   onAddCredorLicense: (cl: Omit<CredorLicense, 'id'>) => void;
   onUpdateCredorLicense: (cl: CredorLicense) => void;
   onDeleteCredorLicense: (id: string) => void;
+  onAddCredorEvaluation: (evaluation: Omit<CredorEvaluation, 'id'>) => void;
+  onDeleteCredorEvaluation: (id: string) => void;
 }
 
 const initialCredorState: Omit<Credor, 'id'> = {
@@ -27,6 +30,7 @@ const initialCredorState: Omit<Credor, 'id'> = {
   state: '',
   contact: '',
   status: 'Ativa',
+  serviceTypes: [],
 };
 
 const initialLicenseFormState = {
@@ -36,7 +40,13 @@ const initialLicenseFormState = {
   observacao: '',
 };
 
+const initialEvaluationFormState = {
+  nota: 0,
+  comentario: '',
+};
+
 type PendingLicense = Omit<CredorLicense, 'id' | 'credorId'>;
+type PendingEvaluation = Omit<CredorEvaluation, 'id' | 'credorId'>;
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '-';
@@ -49,15 +59,19 @@ export const CredorEditModal: React.FC<CredorEditModalProps> = ({
   onClose,
   credor,
   credorLicenses,
+  credorEvaluations,
   onAddCredor,
   onUpdateCredor,
   onAddCredorLicense,
   onUpdateCredorLicense,
   onDeleteCredorLicense,
+  onAddCredorEvaluation,
+  onDeleteCredorEvaluation,
 }) => {
-  const [activeTab, setActiveTab] = useState<'dados' | 'licencas'>('dados');
+  const [activeTab, setActiveTab] = useState<'dados' | 'licencas' | 'avaliacoes'>('dados');
   const [formState, setFormState] = useState<Omit<Credor, 'id'>>(initialCredorState);
   const [formAttachments, setFormAttachments] = useState<Attachment[]>([]);
+  const [serviceTypeInput, setServiceTypeInput] = useState('');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -65,15 +79,21 @@ export const CredorEditModal: React.FC<CredorEditModalProps> = ({
   const [pendingLicenses, setPendingLicenses] = useState<PendingLicense[]>([]);
   const [editingDetailLicense, setEditingDetailLicense] = useState<CredorLicense | null>(null);
 
+  const [evaluationForm, setEvaluationForm] = useState(initialEvaluationFormState);
+  const [pendingEvaluations, setPendingEvaluations] = useState<PendingEvaluation[]>([]);
+
   useEffect(() => {
     if (!open) return;
     setActiveTab('dados');
+    setServiceTypeInput('');
     setLicenseForm(initialLicenseFormState);
     setPendingLicenses([]);
     setEditingDetailLicense(null);
+    setEvaluationForm(initialEvaluationFormState);
+    setPendingEvaluations([]);
     if (credor) {
       const { id, attachments, ...data } = credor;
-      setFormState(data);
+      setFormState({ ...data, serviceTypes: data.serviceTypes || [] });
       setFormAttachments(attachments || []);
     } else {
       setFormState(initialCredorState);
@@ -86,6 +106,19 @@ export const CredorEditModal: React.FC<CredorEditModalProps> = ({
     if (!credor) return [];
     return credorLicenses.filter(cl => cl.credorId === credor.id);
   }, [credor, credorLicenses]);
+
+  const credorEvaluationsForModal = useMemo(() => {
+    if (!credor) return [];
+    return credorEvaluations
+      .filter(ev => ev.credorId === credor.id)
+      .sort((a, b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : 0));
+  }, [credor, credorEvaluations]);
+
+  const evaluationAverage = useMemo(() => {
+    if (credorEvaluationsForModal.length === 0) return null;
+    const sum = credorEvaluationsForModal.reduce((total, ev) => total + ev.nota, 0);
+    return sum / credorEvaluationsForModal.length;
+  }, [credorEvaluationsForModal]);
 
   const guardedClose = () => {
     if (uploading || saving) return;
@@ -137,6 +170,24 @@ export const CredorEditModal: React.FC<CredorEditModalProps> = ({
     setFormAttachments(prev => prev.filter(a => a.id !== attachmentId));
   };
 
+  const handleAddServiceType = () => {
+    const trimmed = serviceTypeInput.trim();
+    if (!trimmed) return;
+    setFormState(prev => {
+      const existing = prev.serviceTypes || [];
+      if (existing.some(st => st.toLowerCase() === trimmed.toLowerCase())) return prev;
+      return { ...prev, serviceTypes: [...existing, trimmed] };
+    });
+    setServiceTypeInput('');
+  };
+
+  const handleRemoveServiceType = (serviceType: string) => {
+    setFormState(prev => ({
+      ...prev,
+      serviceTypes: (prev.serviceTypes || []).filter(st => st !== serviceType),
+    }));
+  };
+
   const handleAddOrQueueLicense = () => {
     if (!licenseForm.tipo || !licenseForm.numero || !licenseForm.dataVencimento) {
       alert('Preencha tipo, número e data de vencimento da licença.');
@@ -176,6 +227,24 @@ export const CredorEditModal: React.FC<CredorEditModalProps> = ({
     setLicenseForm(initialLicenseFormState);
   };
 
+  const handleAddOrQueueEvaluation = () => {
+    if (!evaluationForm.nota) {
+      alert('Selecione uma nota de 1 a 5 estrelas.');
+      return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    if (credor) {
+      onAddCredorEvaluation({ credorId: credor.id, data: today, nota: evaluationForm.nota, comentario: evaluationForm.comentario });
+    } else {
+      setPendingEvaluations(prev => [...prev, { data: today, nota: evaluationForm.nota, comentario: evaluationForm.comentario }]);
+    }
+    setEvaluationForm(initialEvaluationFormState);
+  };
+
+  const removePendingEvaluation = (index: number) => {
+    setPendingEvaluations(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSave = async () => {
     if (!formState.name) {
       alert('Por favor, preencha o nome do credor.');
@@ -189,6 +258,7 @@ export const CredorEditModal: React.FC<CredorEditModalProps> = ({
       } else {
         const newCredorId = await onAddCredor({ ...formState, attachments: formAttachments });
         pendingLicenses.forEach(lic => onAddCredorLicense({ ...lic, credorId: newCredorId }));
+        pendingEvaluations.forEach(ev => onAddCredorEvaluation({ ...ev, credorId: newCredorId }));
       }
       onClose();
     } finally {
@@ -251,6 +321,16 @@ export const CredorEditModal: React.FC<CredorEditModalProps> = ({
         >
           Licenças/Anexos
         </button>
+        <button
+          onClick={() => setActiveTab('avaliacoes')}
+          className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+            activeTab === 'avaliacoes'
+              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300'
+          }`}
+        >
+          Avaliações
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
@@ -293,8 +373,45 @@ export const CredorEditModal: React.FC<CredorEditModalProps> = ({
                 </span>
               )}
             </div>
+            <div className="flex flex-col md:col-span-2">
+              <label htmlFor="serviceTypeInput" className="mb-1 font-semibold text-gray-600 dark:text-gray-300">Tipos de Serviço</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  id="serviceTypeInput"
+                  value={serviceTypeInput}
+                  onChange={e => setServiceTypeInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddServiceType();
+                    }
+                  }}
+                  placeholder="Ex: Transporte de Resíduos"
+                  className="flex-1 p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddServiceType}
+                  disabled={!serviceTypeInput.trim()}
+                  className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Adicionar
+                </button>
+              </div>
+              {formState.serviceTypes && formState.serviceTypes.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {formState.serviceTypes.map(serviceType => (
+                    <span key={serviceType} className="flex items-center gap-1 px-2 py-1 text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full">
+                      {serviceType}
+                      <button type="button" onClick={() => handleRemoveServiceType(serviceType)} className="hover:text-purple-900 dark:hover:text-purple-100">×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        ) : (
+        ) : activeTab === 'licencas' ? (
           <div className="space-y-6">
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -461,6 +578,96 @@ export const CredorEditModal: React.FC<CredorEditModalProps> = ({
                 </div>
               )}
             </div>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-gray-600 dark:text-gray-300">
+                {evaluationAverage !== null
+                  ? `Média: ★ ${evaluationAverage.toFixed(1)} (${credorEvaluationsForModal.length} ${credorEvaluationsForModal.length !== 1 ? 'avaliações' : 'avaliação'})`
+                  : 'Nenhuma avaliação registrada.'}
+              </p>
+              {credor && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  Alterações aqui são salvas imediatamente
+                </span>
+              )}
+            </div>
+
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <p className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-2">Nova avaliação</p>
+              <div className="flex items-center gap-1 mb-3">
+                {[1, 2, 3, 4, 5].map(value => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setEvaluationForm(prev => ({ ...prev, nota: value }))}
+                    className={`text-2xl leading-none transition-colors ${value <= evaluationForm.nota ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'}`}
+                    aria-label={`${value} estrela${value > 1 ? 's' : ''}`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={evaluationForm.comentario}
+                onChange={e => setEvaluationForm(prev => ({ ...prev, comentario: e.target.value }))}
+                placeholder="Comentário (opcional)"
+                rows={2}
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
+              />
+              <button
+                type="button"
+                onClick={handleAddOrQueueEvaluation}
+                disabled={!evaluationForm.nota}
+                className="mt-3 px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <PlusIcon /> Adicionar Avaliação
+              </button>
+            </div>
+
+            {credor ? (
+              credorEvaluationsForModal.length > 0 && (
+                <div className="space-y-2">
+                  {credorEvaluationsForModal.map(ev => (
+                    <div key={ev.id} className="flex items-start justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-yellow-400 text-sm">{'★'.repeat(ev.nota)}<span className="text-gray-300 dark:text-gray-600">{'★'.repeat(5 - ev.nota)}</span></span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{formatDate(ev.data)}</span>
+                        </div>
+                        {ev.comentario && (
+                          <p className="text-sm text-gray-700 dark:text-gray-200 mt-1">{ev.comentario}</p>
+                        )}
+                      </div>
+                      <button type="button" onClick={() => onDeleteCredorEvaluation(ev.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors flex-shrink-0"><TrashIcon /></button>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : (
+              pendingEvaluations.length > 0 && (
+                <div>
+                  <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">Avaliações a cadastrar:</p>
+                  <div className="space-y-2">
+                    {pendingEvaluations.map((ev, index) => (
+                      <div key={index} className="flex items-start justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-yellow-400 text-sm">{'★'.repeat(ev.nota)}<span className="text-gray-300 dark:text-gray-600">{'★'.repeat(5 - ev.nota)}</span></span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">{formatDate(ev.data)}</span>
+                          </div>
+                          {ev.comentario && (
+                            <p className="text-sm text-gray-700 dark:text-gray-200 mt-1">{ev.comentario}</p>
+                          )}
+                        </div>
+                        <button type="button" onClick={() => removePendingEvaluation(index)} className="text-red-500 hover:text-red-700 transition-colors flex-shrink-0"><TrashIcon /></button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            )}
           </div>
         )}
       </div>

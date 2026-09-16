@@ -61,6 +61,7 @@ const App: React.FC = () => {
     branches,
     credores,
     credorLicenses,
+    credorEvaluations,
     laos,
     laoConditions,
     laoInspections,
@@ -83,6 +84,8 @@ const App: React.FC = () => {
     addCredorLicense,
     updateCredorLicense,
     deleteCredorLicense,
+    addCredorEvaluation,
+    deleteCredorEvaluation,
     addLao,
     updateLao,
     deleteLao,
@@ -99,6 +102,7 @@ const App: React.FC = () => {
     licenseTypes: visibleLicenseTypes,
     credores: visibleCredores,
     credorLicenses: visibleCredorLicenses,
+    credorEvaluations: visibleCredorEvaluations,
     laos: visibleLaos,
     laoConditions: visibleLaoConditions,
     laoInspections: visibleLaoInspections,
@@ -110,6 +114,7 @@ const App: React.FC = () => {
     licenseTypes,
     credores,
     credorLicenses,
+    credorEvaluations,
     laos,
     laoConditions,
     laoInspections,
@@ -362,12 +367,15 @@ const App: React.FC = () => {
                 <CredoresManagement
                   credores={visibleCredores}
                   credorLicenses={visibleCredorLicenses}
+                  credorEvaluations={visibleCredorEvaluations}
                   onAddCredor={addCredor}
                   onUpdateCredor={updateCredor}
                   onDeleteCredor={deleteCredor}
                   onAddCredorLicense={addCredorLicense}
                   onUpdateCredorLicense={updateCredorLicense}
                   onDeleteCredorLicense={deleteCredorLicense}
+                  onAddCredorEvaluation={addCredorEvaluation}
+                  onDeleteCredorEvaluation={deleteCredorEvaluation}
                 />
               )}
             </Suspense>

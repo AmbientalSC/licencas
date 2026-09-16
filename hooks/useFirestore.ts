@@ -19,6 +19,7 @@ import type {
   Branch,
   Credor,
   CredorLicense,
+  CredorEvaluation,
   LaoRecord,
   LaoCondition,
   LaoInspection,
@@ -30,6 +31,7 @@ const licenseTypesCollectionRef = collection(db, 'licenseTypes');
 const branchesCollectionRef = collection(db, 'branches');
 const credoresCollectionRef = collection(db, 'credores');
 const credorLicensesCollectionRef = collection(db, 'credorLicenses');
+const credorEvaluationsCollectionRef = collection(db, 'credorEvaluations');
 const laoCollectionRef = collection(db, 'laos');
 const laoConditionsCollectionRef = collection(db, 'laoConditions');
 const laoInspectionsCollectionRef = collection(db, 'laoInspections');
@@ -55,6 +57,7 @@ export function useFirestoreData() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [credores, setCredores] = useState<Credor[]>([]);
   const [credorLicenses, setCredorLicenses] = useState<CredorLicense[]>([]);
+  const [credorEvaluations, setCredorEvaluations] = useState<CredorEvaluation[]>([]);
   const [laos, setLaos] = useState<LaoRecord[]>([]);
   const [laoConditions, setLaoConditions] = useState<LaoCondition[]>([]);
   const [laoInspections, setLaoInspections] = useState<LaoInspection[]>([]);
@@ -116,6 +119,12 @@ export function useFirestoreData() {
     setCredorLicenses(credorLicensesData);
   }, []);
 
+  const fetchCredorEvaluations = useCallback(async () => {
+    const data = await getDocs(credorEvaluationsCollectionRef);
+    const credorEvaluationsData = data.docs.map(d => ({ ...d.data(), id: d.id } as CredorEvaluation));
+    setCredorEvaluations(credorEvaluationsData);
+  }, []);
+
   const fetchLaos = useCallback(async () => {
     const data = await getDocs(laoCollectionRef);
     const laosData = data.docs.map(d => ({ ...d.data(), id: d.id } as LaoRecord));
@@ -149,6 +158,7 @@ export function useFirestoreData() {
           fetchBranches(),
           fetchCredores(),
           fetchCredorLicenses(),
+          fetchCredorEvaluations(),
           fetchLaos(),
           fetchLaoConditions(),
           fetchLaoInspections(),
@@ -167,6 +177,7 @@ export function useFirestoreData() {
     fetchBranches,
     fetchCredores,
     fetchCredorLicenses,
+    fetchCredorEvaluations,
     fetchLaos,
     fetchLaoConditions,
     fetchLaoInspections,
@@ -296,8 +307,14 @@ export function useFirestoreData() {
       batch.delete(clDoc.ref);
     });
 
+    const evaluationsQuery = query(credorEvaluationsCollectionRef, where('credorId', '==', id));
+    const evaluationsSnapshot = await getDocs(evaluationsQuery);
+    evaluationsSnapshot.forEach(evalDoc => {
+      batch.delete(evalDoc.ref);
+    });
+
     await batch.commit();
-    await Promise.all([fetchCredores(), fetchCredorLicenses()]);
+    await Promise.all([fetchCredores(), fetchCredorLicenses(), fetchCredorEvaluations()]);
   };
 
   const addCredorLicense = async (credorLicense: Omit<CredorLicense, 'id'>) => {
@@ -317,6 +334,18 @@ export function useFirestoreData() {
     const credorLicenseDocRef = doc(db, 'credorLicenses', id);
     await deleteDoc(credorLicenseDocRef);
     await fetchCredorLicenses();
+  };
+
+  const addCredorEvaluation = async (credorEvaluation: Omit<CredorEvaluation, 'id'>) => {
+    const docRef = await addDoc(credorEvaluationsCollectionRef, credorEvaluation);
+    await fetchCredorEvaluations();
+    return docRef.id;
+  };
+
+  const deleteCredorEvaluation = async (id: string) => {
+    const credorEvaluationDocRef = doc(db, 'credorEvaluations', id);
+    await deleteDoc(credorEvaluationDocRef);
+    await fetchCredorEvaluations();
   };
 
   const addLao = async (lao: Omit<LaoRecord, 'id'>) => {
@@ -441,6 +470,7 @@ export function useFirestoreData() {
     branches,
     credores,
     credorLicenses,
+    credorEvaluations,
     laos,
     laoConditions,
     laoInspections,
@@ -463,6 +493,8 @@ export function useFirestoreData() {
     addCredorLicense,
     updateCredorLicense,
     deleteCredorLicense,
+    addCredorEvaluation,
+    deleteCredorEvaluation,
     addLao,
     updateLao,
     deleteLao,

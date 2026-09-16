@@ -64,5 +64,9 @@ service cloud.firestore {
     match /credorLicenses/{docId} {
       allow read, write: if isActive();
     }
+
+    match /credorEvaluations/{docId} {
+      allow read, write: if isActive();
+    }
   }
 }
