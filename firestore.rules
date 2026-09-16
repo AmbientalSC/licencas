@@ -1,72 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function isAdmin() {
-      return isAuthenticated()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    function isActive() {
-      return isAuthenticated()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true;
-    }
-
-    match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated()
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.role in ['admin', 'colaborador'];
-      allow update: if isAuthenticated()
-        && (request.auth.uid == resource.data.uid || isAdmin());
-      allow delete: if isAdmin();
-    }
-
-    match /licenses/{docId} {
-      allow read, write: if isActive();
-    }
-
-    match /units/{docId} {
-      allow read, write: if isActive();
-    }
-
-    match /licenseTypes/{docId} {
-      allow read: if isActive();
-      allow write: if isAdmin();
-    }
-
-    match /branches/{docId} {
-      allow read: if isActive();
-      allow write: if isAdmin();
-    }
-
-    match /laos/{docId} {
-      allow read, write: if isActive();
-    }
-
-    match /laoConditions/{docId} {
-      allow read, write: if isActive();
-    }
-
-    match /laoInspections/{docId} {
-      allow read, write: if isActive();
-    }
-
-    match /credores/{docId} {
-      allow read: if isActive();
-      allow write: if isAdmin();
-    }
-
-    match /credorLicenses/{docId} {
-      allow read, write: if isActive();
-    }
-
-    match /credorEvaluations/{docId} {
-      allow read, write: if isActive();
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }
