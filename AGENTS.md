@@ -1,100 +1,50 @@
 # AGENTS.md — Sistema de Gestão de Licenças Ambientais
 
+Aplicação web (React 19 + TypeScript + Vite + Tailwind CSS) para gestão de licenças ambientais, credores e condicionantes (LAO) da Ambiental. Backend: Firebase (Auth, Firestore, Storage, Cloud Functions). Deploy: GitHub Pages em `/licencas/`.
+
 ## Comandos
 
-```bash
-npm run dev       # servidor de desenvolvimento Vite (localhost:5173)
-npm run build     # build de produção (output: dist/)
-npm run preview   # preview local do build de produção
-npm run deploy    # deploy no GitHub Pages via gh-pages (roda build antes)
-npm test          # rodar testes (vitest watch)
-npm run test:run  # rodar testes uma vez (CI)
-```
-
-**Atenção:** Não há scripts de lint, typecheck ou format. O TypeScript é verificado apenas em tempo de build via Vite. O `tsconfig.json` tem `strict: true`, `noUnusedLocals: true` e `noUnusedParameters: true` — código com variáveis não usadas **não compila**.
-
-## Stack
-
-- **Frontend:** React 19, TypeScript 5.7, Vite 6, Tailwind CSS 3 (dark mode com estratégia `class`)
-- **Backend/Infra:** Firebase (Firestore, Auth, Storage). Projeto: `licencas-a47f9`
-- **Deploy:** GitHub Pages — base path `/licencas/` (definido em `vite.config.ts`)
+| Comando | Descrição |
+|---|---|
+| `npm run dev` | Servidor de desenvolvimento (Vite) |
+| `npm run build` | Build de produção (Vite) — **não** roda typecheck |
+| `npm run test:run` | Testes (Vitest, jsdom) |
+| `npx tsc --noEmit` | Typecheck da raiz (não existe script npm) |
+| `npm --prefix functions run build` | Compila Cloud Functions (tsc → `functions/lib/`) |
+| `npm --prefix functions run lint` | ESLint das functions (roda no `predeploy` do Firebase) |
+| `npm run deploy` | `gh-pages -d dist` (aplica a base `/licencas/`) |
+| `firebase deploy --only firestore:rules` | Publica `firestore.rules` |
 
 ## Arquitetura
 
-SPA com entry point em `index.tsx` → `App.tsx`. O estado da aplicação foi extraído para hooks customizados:
+- **`App.tsx`** — roteamento por estado (`View` union type), sem react-router. Telas carregadas com `React.lazy` + `Suspense`. Telas: `dashboard`, `licenses`, `sgaLicenses`, `deactivatedLicenses`, `licenseTypes`, `branches`, `credores`, `laoConditions`, `users`.
+- **`components/`** — uma tela por arquivo (`LicenseManagement.tsx`, `LaoConditionsManagement.tsx`, `ImportLicensesModal.tsx`, etc.) + `icons/` (SVGs como componentes React).
+- **`hooks/`** — `useAuth` (auth + perfil/role do usuário), `useFirestoreData` (leitura/CRUD de todas as coleções), `usePermissions` (acesso a telas + filtragem de visibilidade por branch/tipo de licença), `useTheme` (dark mode via classe `dark`).
+- **`types.ts`** — modelos de domínio: `License`, `Unit`, `Branch`, `Credor`, `CredorLicense`, `LaoRecord`, `LaoCondition`, `LaoInspection`, `User`.
+- **`utils/laoSchedule.ts`** — lógica de agendamento de inspeções de condicionantes (frequências, datas, import de planilhas). Testes em `utils/laoSchedule.test.ts`.
+- **`functions/`** — Cloud Functions v2 (`onCall`): `adminResetUserPassword` (reset de senha + e-mail via SMTP usando secrets `defineSecret`). Código-fonte em `src/`, build em `lib/` (gitignored).
 
-- `hooks/useAuth.ts` — autenticação Firebase Auth + perfil Firestore + validação de `active`
-- `hooks/useTheme.ts` — tema dark/light + localStorage + prefers-color-scheme
-- `hooks/useFirestore.ts` — CRUD de todas as coleções Firestore + migração de attachments
-- `hooks/usePermissions.ts` — controle de acesso a telas e filtros de visibilidade por role
+## Dados (Firestore)
 
-O `App.tsx` (~322 linhas) agora é apenas a camada de view: compõe os hooks e renderiza sidebar, header e rotas.
+Coleções: `users`, `licenses`, `units`, `licenseTypes`, `branches`, `laos`, `laoConditions`, `laoInspections`, `credores`, `credorLicenses`.
 
-**Componentes lazy-loaded:** `Dashboard`, `LicenseManagement`, `LicenseTypeManagement`, `BranchManagement`, `DeactivatedLicenses`, `LaoConditionsManagement`, `UserManagement`
+Regras em `firestore.rules`: leitura/escrita de `licenses`/`units`/`laos`/`laoConditions`/`laoInspections`/`credorLicenses` para usuários ativos; `licenseTypes`/`branches`/`credores` são somente leitura para ativos e escrita apenas para admin; `users` tem regras próprias (auto-criação do primeiro usuário como admin).
 
-**Coleções Firestore:** `units`, `licenses`, `licenseTypes`, `branches`, `laos`, `laoConditions`, `laoInspections`, `users`
+## Convenções
 
-**Alias de path:** `@/*` mapeia para a raiz do projeto (`tsconfig.json` + `vite.config.ts`).
+- UI e mensagens em **pt-BR** (datas em `dd/mm/aaaa`, status: `Ativa` | `Vencida` | `Em Renovação`).
+- Dark mode: Tailwind `darkMode: 'class'` + variáveis CSS em `index.css`; preferência salva em `localStorage('themePreference')`. Não adicione cores hardcoded sem passar pelas variáveis.
+- Alias `@` → raiz do projeto (`vite.config.ts` / `tsconfig.json`).
+- `firebase.ts` contém a config pública do Firebase (normal para apps web); a segurança real vem de `firestore.rules`. Ao alterar regras, publique com o comando acima.
+- Filtragem de dados por permissão acontece em `usePermissions` (nunca no componente); telas são controladas por `allowedScreens` do perfil (`User`).
+- Componentes de tela recebem dados e callbacks por props a partir de `App.tsx` (ex.: `onAddLicense`, `onUpdateLicense`).
+- Testes: Vitest + jsdom, padrão Arrange-Act-Assert, em `*.test.ts` ao lado do módulo.
 
-## Autenticação e Perfis
+## Armadilhas conhecidas
 
-- Login via Firebase Auth (email/senha) — component `Login.tsx`
-- Primeiro usuário a logar vira `admin` automaticamente; seguintes viram `colaborador`
-- `admin` vê tudo. `colaborador` tem acesso restrito por `allowedScreens`, `visibleBranchIds` e `visibleLicenseTypes`
-- O perfil do usuário é armazenado na coleção `users` do Firestore (não em Custom Claims)
-- O hook `useAuth.ts` verifica o campo `active`: se `active === false`, o usuário é automaticamente deslogado
-
-## Datas
-
-Todas as datas no código são strings ISO (`YYYY-MM-DD`). Exibição em formato brasileiro (`DD/MM/YYYY`) feita pelo utilitário `formatDateBR` em `utils/laoSchedule.ts`. Importação de planilhas Excel converte números de série do Excel e strings `DD/MM/YYYY` para ISO via `parseWorkbookDate`.
-
-## Temas (Dark/Light)
-
-- Tailwind configurado com `darkMode: 'class'`
-- Preferência salva em `localStorage` (`themePreference`, `theme`)
-- Respeita `prefers-color-scheme` do sistema quando configurado como `'system'`
-- Script inline no `<head>` de `index.html` aplica o tema antes do React hidratar (evita flash)
-
-## Importação de Dados
-
-- O pacote `xlsx` é usado para importar LAOs e licenças via planilhas Excel
-- Componentes de importação: `ImportLaoWorkbookModal.tsx` e `ImportLicensesModal.tsx`
-- A importação de inspeções de condicionantes detecta duplicatas por `conditionId` + `inspectionDate`
-
-## Migração de Dados (Attachments)
-
-No `fetchLicenses` há uma migração automática: licenças no formato antigo (`fileUrl`/`fileName` únicos) são convertidas para o novo formato `attachments[]` (array de objetos `Attachment`). Essa lógica deve ser preservada ao modificar o fetch de licenças.
-
-## Firebase Functions
-
-O `firebase.json` declara um diretório `functions/`, mas ele **ainda não existe**. Se precisar adicionar Cloud Functions, crie o diretório e configure.
-
-## CORS do Storage
-
-O arquivo `cors.json` define regras CORS para o Firebase Storage. Origens permitidas: `https://ambientalsc.github.io` e `http://localhost:5173`. Métodos: GET, PUT, POST, DELETE. Aplicar com `gsutil cors set cors.json gs://licencas-a47f9.firebasestorage.app`.
-
-## Firestore Security Rules
-
-O arquivo `firestore.rules` contém regras granulares de segurança. Regras principais:
-- Apenas usuários autenticados e ativos (`active: true`) podem ler/escrever
-- Apenas `admin` pode escrever em `licenseTypes`, `branches` e deletar `users`
-- Usuários criam o próprio perfil Firestore no primeiro login
-- Deploy das regras: `firebase deploy --only firestore:rules`
-
-## Segurança (CSP)
-
-O `index.html` inclui meta tag Content-Security-Policy restritiva. Ao modificar integrações externas, verifique se os domínios necessários estão na política.
-
-## GEMINI_API_KEY
-
-A injeção de `process.env.GEMINI_API_KEY` foi removida do `vite.config.ts` — nada no código atual usava essa variável. Se precisar reintroduzir, prefira Firebase Functions como proxy em vez de expor no frontend.
-
-## .env
-
-Arquivos `.env`, `.env.local` e `.env.*.local` estão no `.gitignore`. Não comite secrets.
-
-## Convenções de Código
-
-- UI e comentários em **português brasileiro** (regra em `.agent/rules/language.md`)
-- Ícones são componentes React em `components/icons/` (SVGs inline, não biblioteca externa)
-- Firebase config está hardcoded em `firebase.ts` (API key, project ID etc.) — não extraia para `.env` sem testar o deploy
+- `npx tsc --noEmit` na raiz **falha** hoje (18 erros): `vite.config.ts` usa `test` sem importar de `vitest/config`; imports de `*.svg`/`*.css` e `react-dom/client` sem declarações (falta `vite-env.d.ts` e `@types/react-dom`); vários erros `noUnusedLocals` (`SettingsIcon.tsx`, `Dashboard.tsx`, `LicenseManagement.tsx`, `LaoConditionsManagement.tsx`, `App.tsx`); erro de tipo real em `DeactivatedLicenses.tsx` (destructuring `checked`) e `ImportLicensesModal.tsx` (`status` como `string`). O build do Vite passa mesmo assim.
+- `index.html` tem CSP inline listando os domínios do Firebase. Se novos endpoints forem adicionados (ex.: Cloud Functions em outra região), atualize `connect-src`. Em dev, o websocket de HMR pode ser bloqueado pelo CSP.
+- `functions` usa ESLint 8 + `@typescript-eslint` 7 com TypeScript 5.9 — o lint funciona, mas emite warning de versão não suportada (suporta `<5.6`).
+- Chunk `xlsx` é grande (~430 kB min): já separado via `manualChunks`; não importe `xlsx` nas telas principais sem `React.lazy`.
+- `App.tsx` define `SidebarItem` dentro do componente (recriado a cada render) — prefira extrair para componente/arquivo próprio.
+- `usePermissions`: para não-admins, `visibleBranchIds`/`visibleLicenseTypes` vazios significam "sem restrição" (vê tudo). Se quiser restringir, liste os IDs.

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { License, Branch, LicenseType } from '../types';
 import { PencilIcon } from './icons/PencilIcon';
 import { FilterIcon } from './icons/FilterIcon';
+import { LicenseDetailsModal } from './LicenseDetailsModal';
 
 interface DeactivatedLicensesProps {
   licenses: License[];
@@ -11,8 +12,8 @@ interface DeactivatedLicensesProps {
 }
 
 const DeactivatedLicenses: React.FC<DeactivatedLicensesProps> = ({ licenses, branches, licenseTypes, onUpdateLicense }) => {
-  const [editingLicense, setEditingLicense] = useState<License | null>(null);
-  const [formState, setFormState] = useState<License | null>(null);
+  const [selectedLicenseForModal, setSelectedLicenseForModal] = useState<License | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'originalExpiryDate', direction: 'asc' });
   const [showFilter, setShowFilter] = useState(false);
   const [filter, setFilter] = useState<{ branchId: string; licenseType: string }>({ branchId: '', licenseType: '' });
@@ -21,28 +22,32 @@ const DeactivatedLicenses: React.FC<DeactivatedLicensesProps> = ({ licenses, bra
     return branches.find(b => b.id === branchId)?.name || 'Desconhecida';
   };
 
-  const handleEditClick = (license: License) => {
-    setEditingLicense(license);
-    setFormState(license);
+  const handleRowClick = (license: License) => {
+    setSelectedLicenseForModal(license);
+    setIsModalOpen(true);
   };
 
-  const handleCancel = () => {
-    setEditingLicense(null);
-    setFormState(null);
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedLicenseForModal(null);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value, type, checked } = e.target;
-    setFormState(prev => prev ? { ...prev, [name]: type === 'checkbox' ? checked : value } : null);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formState) {
-      onUpdateLicense(formState);
-      handleCancel();
+  // Sincronizar o modal quando as licenças são recarregadas; fecha se a licença
+  // saiu desta lista (ex.: foi reativada dentro do próprio modal). Só atualiza a
+  // referência quando o conteúdo de fato mudou, para não disparar a reverificação
+  // de anexos do LicenseDetailsModal a cada snapshot não relacionado do Firestore.
+  useEffect(() => {
+    if (selectedLicenseForModal && isModalOpen) {
+      const updatedLicense = licenses.find(l => l.id === selectedLicenseForModal.id);
+      if (!updatedLicense) {
+        setIsModalOpen(false);
+        setSelectedLicenseForModal(null);
+      } else if (JSON.stringify(updatedLicense) !== JSON.stringify(selectedLicenseForModal)) {
+        setSelectedLicenseForModal(updatedLicense);
+      }
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [licenses, isModalOpen]);
 
   const handleSort = (key: string) => {
     setSortConfig(prev => {
@@ -147,7 +152,11 @@ const DeactivatedLicenses: React.FC<DeactivatedLicensesProps> = ({ licenses, bra
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {sortedLicenses.map(license => (
-                <tr key={license.id} className="bg-white dark:bg-gray-800 transition-all duration-200 ease-out hover:bg-gray-50 hover:shadow-md hover:-translate-y-0.5 dark:hover:bg-gray-700">
+                <tr
+                  key={license.id}
+                  onClick={() => handleRowClick(license)}
+                  className="bg-white dark:bg-gray-800 transition-all duration-200 ease-out hover:bg-gray-50 hover:shadow-md hover:-translate-y-0.5 dark:hover:bg-gray-700 cursor-pointer"
+                >
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{getBranchName(license.unitId)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{license.licenseType}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{license.numberYear}</td>
@@ -159,8 +168,8 @@ const DeactivatedLicenses: React.FC<DeactivatedLicensesProps> = ({ licenses, bra
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{license.prorrogaDate ? new Date(license.prorrogaDate + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{license.processStartDate ? new Date(license.processStartDate + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</td>
                   <td className="px-6 py-4 whitespace-normal text-sm text-red-600 dark:text-red-400 max-w-xs">{license.inactiveObservation}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button onClick={() => handleEditClick(license)} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"><PencilIcon /></button>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium" onClick={e => e.stopPropagation()}>
+                    <button onClick={() => handleRowClick(license)} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"><PencilIcon /></button>
                   </td>
                 </tr>
               ))}
@@ -168,46 +177,16 @@ const DeactivatedLicenses: React.FC<DeactivatedLicensesProps> = ({ licenses, bra
           </table>
         </div>
       </div>
-      {editingLicense && formState && (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg mt-6">
-          <h3 className="text-xl font-bold text-gray-700 dark:text-white mb-4">Editar Licença Desativada</h3>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
-            <div className="flex flex-col">
-              <label htmlFor="inactiveObservation" className="mb-1 font-semibold text-gray-600 dark:text-gray-300">Observação da Desativação</label>
-              <textarea
-                name="inactiveObservation"
-                id="inactiveObservation"
-                value={formState.inactiveObservation || ''}
-                onChange={handleChange}
-                rows={2}
-                className="p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
-                required
-              ></textarea>
-            </div>
-            <div className="flex items-center md:col-span-2">
-              <input
-                type="checkbox"
-                id="active"
-                name="active"
-                checked={formState.active}
-                onChange={handleChange}
-                className="mr-2"
-              />
-              <label htmlFor="active" className="font-semibold text-gray-600 dark:text-gray-300">Reativar Licença</label>
-            </div>
-            <div className="md:col-span-2 flex justify-end gap-4">
-              <button type="button" onClick={handleCancel} className="px-6 py-3 bg-gray-500 text-white font-bold rounded-lg hover:bg-gray-600 transition-colors">
-                Cancelar
-              </button>
-              <button type="submit" className="px-6 py-3 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 transition-colors">
-                Salvar Alterações
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      <LicenseDetailsModal
+        license={selectedLicenseForModal}
+        open={isModalOpen}
+        onClose={handleCloseModal}
+        onUpdate={onUpdateLicense}
+        branches={branches}
+        licenseTypes={licenseTypes}
+      />
     </div>
   );
 };
 
-export default DeactivatedLicenses; 
+export default DeactivatedLicenses;
